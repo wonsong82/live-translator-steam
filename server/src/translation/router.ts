@@ -1,8 +1,9 @@
-import type { ITranslationEngine, TranslationResult } from './types.js';
+import type { ITranslationEngine, TranslationProviderType, TranslationResult } from './types.js';
 import type { EnvConfig } from '../config/index.js';
 import { GoogleNmtEngine } from './nmt.js';
 import { GoogleTllmEngine } from './llm.js';
 import { ClaudeEngine } from './claude.js';
+import { QwenLocalEngine } from './qwen-local.js';
 
 export interface TranslationRouter {
   translateInterim(text: string, sourceLang: string, targetLang: string): Promise<TranslationResult>;
@@ -10,30 +11,34 @@ export interface TranslationRouter {
   destroy(): Promise<void>;
 }
 
-export function createTranslationRouter(envConfig: EnvConfig): TranslationRouter {
-  const projectId = envConfig.GOOGLE_TRANSLATION_PROJECT_ID ?? '';
-  const location = envConfig.GOOGLE_TRANSLATION_LOCATION;
-
-  const nmtEngine: ITranslationEngine = new GoogleNmtEngine(projectId);
-
-  let llmEngine: ITranslationEngine;
-  if (envConfig.TRANSLATION_LLM_PROVIDER === 'claude') {
-    llmEngine = new ClaudeEngine(envConfig.CLAUDE_API_KEY ?? '');
-  } else {
-    llmEngine = new GoogleTllmEngine(projectId, location);
+function createEngine(provider: TranslationProviderType, env: EnvConfig, modelOverride?: string): ITranslationEngine {
+  switch (provider) {
+    case 'google-nmt':
+      return new GoogleNmtEngine(env.GOOGLE_TRANSLATION_PROJECT_ID ?? '');
+    case 'google-tllm':
+      return new GoogleTllmEngine(env.GOOGLE_TRANSLATION_PROJECT_ID ?? '', env.GOOGLE_TRANSLATION_LOCATION);
+    case 'claude':
+      return new ClaudeEngine(env.CLAUDE_API_KEY ?? '', modelOverride);
+    case 'qwen-local':
+      return new QwenLocalEngine(env.QWEN_TRANSLATION_URL, modelOverride ?? env.QWEN_TRANSLATION_MODEL);
   }
+}
+
+export function createTranslationRouter(envConfig: EnvConfig): TranslationRouter {
+  const interimEngine = createEngine(envConfig.TRANSLATION_INTERIM_PROVIDER, envConfig, envConfig.TRANSLATION_INTERIM_MODEL);
+  const finalEngine = createEngine(envConfig.TRANSLATION_FINAL_PROVIDER, envConfig, envConfig.TRANSLATION_FINAL_MODEL);
 
   return {
     async translateInterim(text: string, sourceLang: string, targetLang: string): Promise<TranslationResult> {
-      return nmtEngine.translate(text, sourceLang, targetLang);
+      return interimEngine.translate(text, sourceLang, targetLang);
     },
 
     async translateFinal(text: string, sourceLang: string, targetLang: string): Promise<TranslationResult> {
-      return llmEngine.translate(text, sourceLang, targetLang);
+      return finalEngine.translate(text, sourceLang, targetLang);
     },
 
     async destroy(): Promise<void> {
-      await Promise.all([nmtEngine.destroy(), llmEngine.destroy()]);
+      await Promise.all([interimEngine.destroy(), finalEngine.destroy()]);
     },
   };
 }

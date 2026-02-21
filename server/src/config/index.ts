@@ -14,12 +14,15 @@ const envSchema = z.object({
   DEEPGRAM_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
 
-  TRANSLATION_NMT_PROVIDER: z.enum(['google']).default('google'),
-  TRANSLATION_LLM_PROVIDER: z.enum(['google', 'claude']).default('google'),
-  TRANSLATION_LLM_MODEL: z.string().optional(),
+  TRANSLATION_INTERIM_PROVIDER: z.enum(['google-nmt', 'google-tllm', 'claude', 'qwen-local']).default('google-nmt'),
+  TRANSLATION_FINAL_PROVIDER: z.enum(['google-nmt', 'google-tllm', 'claude', 'qwen-local']).default('google-tllm'),
+  TRANSLATION_INTERIM_MODEL: z.string().optional(),
+  TRANSLATION_FINAL_MODEL: z.string().optional(),
   CLAUDE_API_KEY: z.string().optional(),
   GOOGLE_TRANSLATION_PROJECT_ID: z.string().optional(),
   GOOGLE_TRANSLATION_LOCATION: z.string().default('us-central1'),
+  QWEN_TRANSLATION_URL: z.string().default('http://localhost:8002/v1'),
+  QWEN_TRANSLATION_MODEL: z.string().default('Qwen/Qwen3-30B-A3B'),
 
   QWEN3_ASR_ENABLED: z.coerce.boolean().default(false),
   QWEN3_ASR_HOST: z.string().default('qwen3-asr'),
@@ -42,17 +45,19 @@ export function loadConfig(): EnvConfig {
 export interface ServerProviderConfig {
   readonly asrProvider: ASRProviderType;
   readonly asrModel?: string;
-  readonly translationNmtProvider: 'google';
-  readonly translationLlmProvider: TranslationProviderType;
-  readonly translationLlmModel?: string;
+  readonly translationInterimProvider: TranslationProviderType;
+  readonly translationInterimModel?: string;
+  readonly translationFinalProvider: TranslationProviderType;
+  readonly translationFinalModel?: string;
 }
 
 export function resolveProviderConfig(env: EnvConfig): ServerProviderConfig {
   return {
     asrProvider: env.ASR_PROVIDER,
     asrModel: env.ASR_MODEL,
-    translationNmtProvider: env.TRANSLATION_NMT_PROVIDER,
-    translationLlmProvider: env.TRANSLATION_LLM_PROVIDER,
-    translationLlmModel: env.TRANSLATION_LLM_MODEL,
+    translationInterimProvider: env.TRANSLATION_INTERIM_PROVIDER,
+    translationInterimModel: env.TRANSLATION_INTERIM_MODEL,
+    translationFinalProvider: env.TRANSLATION_FINAL_PROVIDER,
+    translationFinalModel: env.TRANSLATION_FINAL_MODEL,
   };
 }
