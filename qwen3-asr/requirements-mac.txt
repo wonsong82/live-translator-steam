@@ -1,0 +1,6 @@
+mlx-qwen3-asr>=0.2.0
+mlx>=0.22.0
+mlx-audio>=0.3.0
+fastapi>=0.115.0
+uvicorn>=0.34.0
+numpy>=1.26.0

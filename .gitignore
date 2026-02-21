@@ -43,6 +43,7 @@ __pycache__/
 *$py.class
 .Python
 venv/
+.venv*/
 *.egg-info/
 
 # Qwen3-ASR model cache
