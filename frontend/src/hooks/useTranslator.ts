@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslatorStore } from '../store/useTranslatorStore';
+import { TranslateSDK, type TranslateSDKInstance } from 'translate-sdk';
 
 export interface TranslatorHook {
   start: () => void;
@@ -7,64 +8,10 @@ export interface TranslatorHook {
   destroy: () => void;
 }
 
-interface MockSDK {
-  destroy: () => void;
-}
-
-const SAMPLE_PAIRS: ReadonlyArray<{
-  readonly korean: string;
-  readonly english: string;
-}> = [
-  { korean: '안녕하세요, 만나서 반갑습니다', english: 'Hello, nice to meet you' },
-  { korean: '오늘 회의 잘 부탁드립니다', english: "I look forward to today's meeting" },
-  { korean: '이 서비스는 실시간으로 번역됩니다', english: 'This service translates in real time' },
-  { korean: '네, 알겠습니다. 감사합니다', english: 'Yes, I understand. Thank you' },
-  {
-    korean: '잠깐만요, 다시 말씀해 주시겠어요',
-    english: 'Just a moment, could you say that again?',
-  },
-];
-
-function createMockSDK(
-  onInterim: (text: string) => void,
-  onFinal: (korean: string, english: string, timestamp: number) => void,
-): MockSDK {
-  let destroyed = false;
-  let sampleIdx = 0;
-
-  const scheduleNext = (): void => {
-    if (destroyed) return;
-    const pair = SAMPLE_PAIRS[sampleIdx % SAMPLE_PAIRS.length];
-    if (!pair) return;
-
-    let charIdx = 0;
-    const charTimer = setInterval(() => {
-      if (destroyed) {
-        clearInterval(charTimer);
-        return;
-      }
-      charIdx++;
-      onInterim(pair.korean.slice(0, charIdx));
-      if (charIdx >= pair.korean.length) {
-        clearInterval(charTimer);
-        setTimeout(() => {
-          if (!destroyed) {
-            onFinal(pair.korean, pair.english, Date.now());
-            sampleIdx++;
-            setTimeout(scheduleNext, 1200);
-          }
-        }, 400);
-      }
-    }, 100);
-  };
-
-  setTimeout(scheduleNext, 300);
-
-  return { destroy: () => { destroyed = true; } };
-}
+const WS_URL = (import.meta.env.VITE_WS_URL as string | undefined) ?? 'ws://localhost:8080/ws';
 
 export function useTranslator(): TranslatorHook {
-  const sdkRef = useRef<MockSDK | null>(null);
+  const sdkRef = useRef<TranslateSDKInstance | null>(null);
 
   useEffect(() => {
     return () => {
@@ -83,23 +30,43 @@ export function useTranslator(): TranslatorHook {
     const store = useTranslatorStore.getState();
     store.setConnectionStatus('connecting');
 
-    setTimeout(() => {
-      const s = useTranslatorStore.getState();
-      s.setConnectionStatus('connected');
-      s.setRecording(true);
+    const sdk = TranslateSDK.init({
+      serverUrl: WS_URL,
+      apiKey: '',
+      sourceLanguage: 'ko',
+      targetLanguage: 'en',
+      mode: 'hybrid',
+      onTranscriptionInterim: (data) => {
+        useTranslatorStore.getState().setInterimSource(data.text);
+      },
+      onTranscriptionFinal: (data) => {
+        useTranslatorStore.getState().addSentence(data.text, data.timestamp);
+      },
+      onTranslationInterim: (data) => {
+        useTranslatorStore.getState().setInterimTranslation(data.translatedText);
+      },
+      onTranslationFinal: (data) => {
+        useTranslatorStore.getState().setTranslation(data.sentenceIndex, data.translatedText);
+      },
+      onStatusChange: (status) => {
+        const s = useTranslatorStore.getState();
+        s.setConnectionStatus(status);
+        if (status === 'connected') s.setRecording(true);
+        if (status === 'disconnected' || status === 'error') s.setRecording(false);
+      },
+      onError: (err) => {
+        useTranslatorStore.getState().setError(err.message);
+      },
+    });
 
-      sdkRef.current = createMockSDK(
-        (text) => useTranslatorStore.getState().setInterimSource(text),
-        (korean, english, timestamp) => {
-          const st = useTranslatorStore.getState();
-          const index = st.sentences.length;
-          st.addSentence(korean, timestamp);
-          setTimeout(() => {
-            useTranslatorStore.getState().setTranslation(index, english);
-          }, 300);
-        },
-      );
-    }, 700);
+    sdkRef.current = sdk;
+    sdk.start().catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Failed to start recording';
+      useTranslatorStore.getState().setError(message);
+      useTranslatorStore.getState().setConnectionStatus('error');
+      sdk.destroy();
+      sdkRef.current = null;
+    });
   }, []);
 
   const stop = useCallback((): void => {
