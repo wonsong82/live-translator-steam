@@ -1,0 +1,115 @@
+services:
+  server:
+    build: ./server
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+      # ASR Provider (server-managed)
+      - ASR_PROVIDER=${ASR_PROVIDER:-deepgram}
+      - ASR_MODEL=${ASR_MODEL:-nova-3}
+      # ASR Credentials
+      - GOOGLE_APPLICATION_CREDENTIALS=/secrets/google-creds.json
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # Translation (server-managed providers, mode from SDK)
+      - TRANSLATION_NMT_PROVIDER=${TRANSLATION_NMT_PROVIDER:-google}
+      - TRANSLATION_LLM_PROVIDER=${TRANSLATION_LLM_PROVIDER:-google}
+      - TRANSLATION_LLM_MODEL=${TRANSLATION_LLM_MODEL:-}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - GOOGLE_TRANSLATION_PROJECT_ID=${GOOGLE_TRANSLATION_PROJECT_ID}
+      - GOOGLE_TRANSLATION_LOCATION=${GOOGLE_TRANSLATION_LOCATION:-us-central1}
+      # Qwen3-ASR
+      - QWEN3_ASR_ENABLED=${QWEN3_ASR_ENABLED:-false}
+      - QWEN3_ASR_HOST=qwen3-asr
+      - QWEN3_ASR_PORT=8001
+      # Infrastructure
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://user:pass@db:5432/translate
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    volumes:
+      - ./secrets:/secrets:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  qwen3-asr:
+    build:
+      context: ./qwen3-asr
+      dockerfile: Dockerfile.gpu
+    ports:
+      - "8001:8001"
+    environment:
+      - QWEN3_ASR_MODEL=Qwen/Qwen3-ASR-1.7B
+      - QWEN3_ASR_HOST=0.0.0.0
+      - QWEN3_ASR_PORT=8001
+      - GPU_MEMORY_UTILIZATION=0.9
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles:
+      - gpu
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_WS_URL=ws://localhost:8080/ws
+    depends_on:
+      server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=translate
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/seed-db.sql:/docker-entrypoint-initdb.d/seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d translate"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pgdata:
