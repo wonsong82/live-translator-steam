@@ -14,12 +14,12 @@ Reference: TRD.md §13
 | 1 | Project scaffolding | ✅ Done | Docker Compose, project structure, configs. CI deferred. |
 | 2 | Server core | ✅ Done | WS gateway, session manager, message protocol, config (Zod) |
 | 3 | Deepgram adapter | ✅ Code done | Adapter implemented. Needs live API key test. |
-| 4 | Translation pipeline | ✅ Code done | NMT (Google), LLM (Google TLLM + Claude). Needs live test. |
+| 4 | Translation pipeline | ✅ Code done | Interim + Final independently configurable. Google NMT, Google TLLM, Claude, Qwen3-30B-A3B (local). Needs live test. |
 | 5 | SDK core | ✅ Done | Audio capture, WS client, event emitter, session state. UMD bundle 2.8KB gzip. |
 | 6 | End-to-end demo | ❌ Not started | Needs real API keys + wiring verification |
 | 7 | Google adapter | ✅ Code done | gRPC duplex stream, 5-min restart. Needs live test. |
 | 8 | OpenAI adapter | ✅ Code done | Realtime API, 16→24kHz resampling. Needs live test. |
-| 9 | Qwen3-ASR adapter | ✅ Code done | Python wrapper + server adapter. Needs GPU host. |
+| 9 | Qwen3-ASR adapter | ✅ Code done | Python wrapper + server adapter. GPU (Linux) + Mac MLX support. Needs live test. |
 | 10 | Frontend app | ✅ Done | React + Zustand + Tailwind. Landing, Translate, Settings pages. |
 | 11 | SDK polish | ❌ Not started | Shadow DOM, themes, docs, npm publish (deferred per TRD) |
 | 12 | Testing & benchmarks | ❌ Not started | Unit tests, CER evaluation (deferred per TRD) |
@@ -58,10 +58,11 @@ Reference: TRD.md §13
 
 #### Server — Translation Engines
 - [x] `server/src/translation/types.ts` — `ITranslationEngine`, `TranslationResult`, `TranslationError`
-- [x] `server/src/translation/router.ts` — interim→NMT, final→LLM routing
+- [x] `server/src/translation/router.ts` — `createEngine()` factory, interim + final independently configurable
 - [x] `server/src/translation/nmt.ts` — Google Cloud Translation v3 (location=global)
 - [x] `server/src/translation/llm.ts` — Google Translation LLM v3 (location=us-central1, model=translation-llm)
 - [x] `server/src/translation/claude.ts` — Anthropic SDK, system prompt preserving Korean formality register
+- [x] `server/src/translation/qwen-local.ts` — Local Qwen3-30B-A3B via OpenAI-compatible endpoint (vLLM/MLX)
 
 #### Server — Storage
 - [x] `server/src/storage/session-store.ts` — PostgreSQL session persistence (stub)
@@ -90,10 +91,12 @@ Reference: TRD.md §13
 - [x] Vite build passes
 
 #### Qwen3-ASR
-- [x] `qwen3-asr/src/server.py` — streaming WebSocket server
+- [x] `qwen3-asr/src/server.py` — streaming WebSocket server (GPU/vLLM)
+- [x] `qwen3-asr/src/server_mac.py` — Mac MLX-based streaming server (mlx-qwen3-asr)
 - [x] `qwen3-asr/src/config.py` — model & server config
 - [x] `qwen3-asr/src/health.py` — health check endpoint
-- [x] `qwen3-asr/requirements.txt`
+- [x] `qwen3-asr/requirements.txt` (GPU)
+- [x] `qwen3-asr/requirements-mac.txt` (MLX)
 
 #### Build Verification
 - [x] TypeScript: server 0 errors, SDK 0 errors, frontend 0 errors
@@ -105,11 +108,26 @@ Reference: TRD.md §13
 #### Git
 - [x] 9 atomic commits following `<type>(<scope>): <description>` convention
 
+#### Mac / Local Model Support
+- [x] `scripts/run-mac-asr.sh` — venv setup + mlx-qwen3-asr server launch
+- [x] `scripts/run-mac-translation.sh` — venv setup + vLLM-Metal Qwen3-30B-A3B launch
+- [x] `.gitignore` updated for `.venv*/`
+- [x] Flexible translation pipeline: interim and final stages independently configurable
+- [x] 4 translation providers: `google-nmt`, `google-tllm`, `claude`, `qwen-local`
+- [x] `docker-compose.yml` updated with new env var names + local model passthrough
+- [x] `.env.example` updated with `TRANSLATION_INTERIM_PROVIDER`, `TRANSLATION_FINAL_PROVIDER`, `QWEN_TRANSLATION_URL`, `QWEN_TRANSLATION_MODEL`
+
+#### Documentation
+- [x] `docs/TRD.md` — updated with flexible translation architecture, Mac ASR, Qwen3-30B-A3B
+- [x] `docs/TKD.md` — added local translation models, Qwen3-ASR on Apple Silicon, cost analysis
+- [x] `README.md` — added local model setup guide, updated provider tables, new config reference
+
 ---
 
 ### 🔲 Remaining
 
 #### Milestone 6 — End-to-End Demo
+- [ ] Wire real SDK into frontend `useTranslator.ts` hook (currently uses MockSDK)
 - [ ] Configure real API keys (Deepgram, Google, OpenAI)
 - [ ] Run `docker compose up` with server + redis + db
 - [ ] Verify SDK→Server WS connection
@@ -118,8 +136,8 @@ Reference: TRD.md §13
 - [ ] Verify frontend displays live transcript + translation
 
 #### Milestone 9 — Qwen3-ASR Live Test
-- [ ] Test on GPU-enabled host
-- [ ] Docker build with `Dockerfile.gpu`
+- [ ] Test on GPU-enabled host (Linux: `docker compose --profile gpu up`)
+- [ ] Test on Mac (`./scripts/run-mac-asr.sh`)
 - [ ] Verify WebSocket streaming from server adapter to Python engine
 
 #### Milestone 11 — SDK Polish (deferred)

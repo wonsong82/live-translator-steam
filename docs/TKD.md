@@ -19,9 +19,11 @@
 8. [Interim vs Final Result Handling](#8-interim-vs-final-result-handling)
 9. [Translation Architecture](#9-translation-architecture)
 10. [Qwen3-ASR Self-Hosted ASR Engine](#10-qwen3-asr-self-hosted-asr-engine)
-11. [Error Metrics: WER vs CER](#11-error-metrics-wer-vs-cer)
-12. [Provider Benchmark Data](#12-provider-benchmark-data)
-13. [Cost Analysis](#13-cost-analysis)
+11. [Local Translation Models](#11-local-translation-models)
+12. [Qwen3-ASR on Apple Silicon (MLX)](#12-qwen3-asr-on-apple-silicon-mlx)
+13. [Error Metrics: WER vs CER](#13-error-metrics-wer-vs-cer)
+14. [Provider Benchmark Data](#14-provider-benchmark-data)
+15. [Cost Analysis](#15-cost-analysis)
 
 ---
 
@@ -781,7 +783,104 @@ Qwen3-ASR automatically identifies the spoken language before transcription. For
 
 ---
 
-## 11. Error Metrics: WER vs CER
+## 11. Local Translation Models
+
+### 11.1 Qwen3-30B-A3B for Translation
+
+Qwen3-30B-A3B is a Mixture-of-Experts (MoE) model from Alibaba's Qwen3 family. It has 30B total parameters but only 3B active per inference — meaning it runs fast with low resource usage while having the knowledge capacity of a much larger model.
+
+**Architecture:**
+- Total parameters: 30B
+- Active parameters: 3B (128 experts, 8 active per token)
+- Context length: 128K tokens
+- Architecture: GQA (32 Q heads, 4 KV heads), RoPE, RMS Norm
+- License: Apache 2.0
+
+**Korean→English Translation Quality:**
+- Supports 100+ languages including Korean
+- Strong multilingual translation and instruction following
+- Quality comparable to or better than Qwen2.5-72B on many benchmarks despite 10x fewer active params
+- Preserves formality register (반말/존댓말) when prompted correctly
+
+**System Requirements:**
+
+| Platform | Hardware | RAM/VRAM | Expected Speed |
+|----------|----------|----------|----------------|
+| Apple Silicon M1 | 16GB+ RAM | ~8GB used | ~8-10 TPS |
+| Apple Silicon M2/M3 | 16GB+ RAM | ~8GB used | ~10-13 TPS |
+| Apple Silicon M4 Max | 128GB RAM | ~8GB used | ~13 TPS |
+| NVIDIA T4 | 16GB VRAM | ~8GB used | ~15-20 TPS |
+| NVIDIA A10 | 24GB VRAM | ~8GB used | ~25-35 TPS |
+
+**Serving:**
+- GPU: vLLM (`vllm serve Qwen/Qwen3-30B-A3B`)
+- Mac: vLLM-Metal plugin (`vllm-metal` package, uses MLX backend)
+- API: OpenAI-compatible /v1/chat/completions
+- Streaming: Yes, token-by-token via SSE
+
+**Cost Comparison:**
+
+| Engine | Cost per 1M tokens | Latency | Self-hosted |
+|--------|-------------------|---------|-------------|
+| Google NMT | ~$20/1M chars | ~100-200ms | No |
+| Google TLLM | ~$50-80/1M chars | ~300-500ms | No |
+| Claude Sonnet | ~$3 in + $15 out /1M | ~500-1500ms | No |
+| Qwen3-30B-A3B (local) | Hardware cost only | ~200-500ms | Yes |
+
+At scale (>1M translations/month), self-hosted Qwen3 is 10-50x cheaper than cloud APIs.
+
+### 11.2 Qwen-MT (API Only)
+
+Qwen-MT (qwen-mt-turbo) is Alibaba's dedicated machine translation product. It is NOT self-hostable — available only via DashScope API.
+
+- Built on Qwen3 with MoE architecture, trained on trillions of translation tokens
+- 92 languages supported including Korean
+- $0.50/M output tokens (cheapest cloud translation API)
+- Features: terminology intervention, translation memory, domain prompts, formality control
+- NOT open-weight — cannot download model files
+
+We chose Qwen3-30B-A3B over Qwen-MT for local translation because it is fully self-hostable under Apache 2.0.
+
+---
+
+## 12. Qwen3-ASR on Apple Silicon (MLX)
+
+### 12.1 mlx-qwen3-asr
+
+`mlx-qwen3-asr` is a ground-up reimplementation of Qwen3-ASR for Apple's MLX framework. It runs the same model weights natively on M-series chips without PyTorch or CUDA.
+
+- Package: `pip install mlx-qwen3-asr` (PyPI, Apache-2.0)
+- GitHub: https://github.com/moona3k/mlx-qwen3-asr
+- Models: `mlx-community/Qwen3-ASR-1.7B-6bit` (~2GB), `mlx-community/Qwen3-ASR-0.6B-6bit` (~500MB)
+
+**Performance (M4 Pro):**
+- Real-time factor: 0.08 (2.5s audio transcribed in 0.46s)
+- ~5x faster than realtime
+- Memory: ~2GB for 1.7B-6bit model
+
+**Key differences from GPU version:**
+- Uses MLX encoder-decoder pipeline (not vLLM)
+- Runs natively on Mac (cannot run in Docker — Docker Desktop has no Metal access)
+- Same accuracy as PyTorch reference (validated against official outputs)
+- Full Whisper-compatible mel frontend reimplemented in MLX
+
+### 12.2 Why MLX and not vLLM MPS?
+
+vLLM has a Metal plugin (vllm-metal), but:
+- vLLM-Metal is designed for LLM text generation, not speech-to-text
+- `qwen-asr` package depends on PyTorch audio processing (torchaudio)
+- mlx-qwen3-asr reimplements the entire pipeline natively for MLX — no PyTorch dependency
+- Better performance: mlx-qwen3-asr achieves RTF 0.08 vs unknown/untested for vLLM MPS ASR
+
+### 12.3 Streaming on Mac
+
+Unlike Whisper (batch-only), Qwen3-ASR was designed for streaming. The Mac server (`server_mac.py`) buffers 1-second audio chunks and runs inference per chunk via `asyncio.to_thread`, keeping the WebSocket responsive. Each chunk produces a transcript result sent back immediately.
+
+Limitation: The MLX inference is synchronous per call, so true word-level streaming (like Deepgram) isn't achievable. Results arrive per ~1 second audio chunk — acceptable for real-time UX but not as granular as cloud providers.
+
+---
+
+## 13. Error Metrics: WER vs CER
 
 ### 11.1 Word Error Rate (WER)
 
@@ -838,7 +937,7 @@ Test data: Real-world YouTube Korean audio, diverse speakers and topics.
 
 **Google's expected position**: Google processes billions of Korean utterances daily through YouTube auto-captions, Android voice input, and Google Assistant. While no third-party CER benchmark exists, Google's Korean model is likely the most accurate for real-world conversational Korean.
 
-### 12.2 Latency Benchmarks (Approximate)
+### 14.2 Latency Benchmarks (Approximate)
 
 | Provider | Time to First Interim | Time to Final (after speech ends) |
 |----------|----------------------|----------------------------------|
@@ -846,6 +945,7 @@ Test data: Real-world YouTube Korean audio, diverse speakers and topics.
 | Deepgram Nova-3 | ~200-400ms | ~300-800ms |
 | OpenAI GPT-4o Transcribe | ~400-700ms | ~600-1200ms |
 | Qwen3-ASR (self-hosted, T4 GPU) | ~300-500ms | ~500-1000ms |
+| Qwen3-ASR (MLX, M4 Pro) | ~200-400ms | ~400-800ms |
 
 ---
 
@@ -870,23 +970,23 @@ Test data: Real-world YouTube Korean audio, diverse speakers and topics.
 
 Qwen3-ASR becomes cost-effective at scale (>100,000 minutes/month).
 
-### 13.3 Translation Pricing
+### 15.3 Translation Pricing
 
 | Engine | Price per 1M Characters | Latency | Use Case |
 |--------|------------------------|---------|----------|
 | Google NMT | $20 | ~100-200ms | Interim translation |
 | Google Translation LLM | ~$50-80 | ~300-500ms | Final translation |
 | Claude API (Sonnet) | ~$100-200 | ~500-1500ms | Highest quality final |
-| Qwen (self-hosted) | GPU cost only | ~200-500ms | Cost-effective at scale |
+| Qwen3-30B-A3B (self-hosted) | Hardware cost only | ~200-500ms | Cost-effective at scale |
 
-### 13.4 Total Cost per User Hour (Estimated)
+### 15.4 Total Cost per User Hour (Estimated)
 
 | Configuration | ASR | Translation | Total / Hour |
 |--------------|-----|-------------|-------------|
 | Deepgram + Google NMT only | $0.28 | $0.30 | ~$0.58 |
 | Deepgram + Hybrid (NMT + Google Translation LLM) | $0.28 | $0.60 | ~$0.88 |
 | Google STT + Hybrid (NMT + Claude) | $0.96 | $0.80 | ~$1.76 |
-| Qwen3-ASR (self-hosted) + self-hosted Qwen MT | ~$0.15 | ~$0.10 | ~$0.25 |
+| Qwen3-ASR + Qwen3-30B-A3B (all local) | ~$0.15 | ~$0.05 | ~$0.20 |
 
 ---
 
@@ -933,6 +1033,9 @@ Qwen3-ASR becomes cost-effective at scale (>100,000 minutes/month).
 | 반말 | Korean casual/informal speech register |
 | 존댓말 | Korean polite/formal speech register |
 | KsponSpeech | Korean spontaneous speech corpus (1,000 hours, ETRI) |
+| MLX | Apple's machine learning framework optimized for Apple Silicon unified memory |
+| MoE | Mixture of Experts — architecture activating subset of parameters per token |
+| vLLM-Metal | vLLM plugin for Apple Silicon using MLX as compute backend |
 
 ---
 
@@ -951,3 +1054,8 @@ Qwen3-ASR becomes cost-effective at scale (>100,000 minutes/month).
 | AudioWorklet | https://developer.mozilla.org/en-US/docs/Web/API/AudioWorklet |
 | Soniox 2025 Benchmark | https://soniox.com/benchmarks |
 | WMT24 Translation | https://www2.statmt.org/wmt24/ |
+| Qwen3-30B-A3B | https://huggingface.co/Qwen/Qwen3-30B-A3B |
+| mlx-qwen3-asr | https://github.com/moona3k/mlx-qwen3-asr |
+| mlx-qwen3-asr PyPI | https://pypi.org/project/mlx-qwen3-asr/ |
+| vLLM-Metal | https://docs.vllm.ai/en/latest/getting_started/installation/ |
+| Qwen-MT Blog | https://qwenlm.github.io/blog/qwen-mt/ |

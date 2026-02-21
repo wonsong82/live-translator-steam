@@ -324,9 +324,10 @@ interface ServerProviderConfig {
   asrProvider: 'google' | 'deepgram' | 'openai' | 'qwen3-asr';
   asrModel?: string;
 
-  translationNmtProvider: 'google';
-  translationLlmProvider: 'google';
-  translationLlmModel?: string;
+  translationInterimProvider: 'google-nmt' | 'google-tllm' | 'claude' | 'qwen-local';
+  translationFinalProvider: 'google-nmt' | 'google-tllm' | 'claude' | 'qwen-local';
+  translationInterimModel?: string;
+  translationFinalModel?: string;
 }
 ```
 
@@ -334,9 +335,12 @@ interface ServerProviderConfig {
 ```bash
 ASR_PROVIDER=deepgram
 ASR_MODEL=nova-3
-TRANSLATION_NMT_PROVIDER=google
-TRANSLATION_LLM_PROVIDER=google
-TRANSLATION_LLM_MODEL=
+TRANSLATION_INTERIM_PROVIDER=google-nmt
+TRANSLATION_FINAL_PROVIDER=google-tllm
+TRANSLATION_INTERIM_MODEL=
+TRANSLATION_FINAL_MODEL=
+QWEN_TRANSLATION_URL=http://localhost:8002/v1
+QWEN_TRANSLATION_MODEL=Qwen/Qwen3-30B-A3B
 ```
 
 ### 4.2 Technology Stack
@@ -471,10 +475,12 @@ GPU requirement: ~4-6GB VRAM
 ### 4.4 Translation Interface
 
 ```typescript
+type TranslationProviderType = 'google-nmt' | 'google-tllm' | 'claude' | 'qwen-local';
+
 interface TranslationResult {
   sourceText: string;
   translatedText: string;
-  engine: 'nmt' | 'llm';
+  engine: TranslationProviderType;
   latencyMs: number;
 }
 
@@ -487,7 +493,7 @@ interface ITranslationEngine {
 }
 ```
 
-**NMT Engine (for interim)**
+**Google NMT Engine (for interim)**
 ```
 Provider: Google Cloud Translation API v3 (NMT model)
 Endpoint: translateText()
@@ -495,10 +501,26 @@ Latency: ~100-200ms
 Cost: $20 per million characters
 ```
 
-**LLM Engine (for final)**
+**Google Translation LLM Engine (for final)**
 ```
 Provider: Google Cloud Translation API (Translation LLM)
 Latency: ~300-500ms
+Cost: Higher than NMT
+```
+
+**Claude Engine (for interim or final)**
+```
+Provider: Anthropic Claude API
+Latency: ~500-1000ms
+Cost: Per-token pricing
+```
+
+**Qwen Local Engine (for interim or final)**
+```
+Provider: Self-hosted Qwen3-30B-A3B via vLLM / vLLM-Metal
+API: OpenAI-compatible /v1/chat/completions
+Latency: ~200-500ms (hardware dependent)
+Cost: GPU/Mac hardware only, no per-request charge
 ```
 
 ### 4.5 Session Flow (Server-Side)
@@ -518,18 +540,18 @@ Latency: ~300-500ms
    b. Calls provider.sendAudio(chunk)
 
 4. Provider sends interim result → Server:
-   a. Maps to TranscriptResult { isFinal: false }
-   b. Sends transcription.interim to client via WS
-   c. IF client requested mode == 'hybrid':
-      - Sends text to NMT engine (async, non-blocking)
-      - When NMT returns, sends translation.interim to client
+    a. Maps to TranscriptResult { isFinal: false }
+    b. Sends transcription.interim to client via WS
+    c. IF client requested mode == 'hybrid':
+       - Sends text to configured interim translation engine (async, non-blocking)
+       - When interim engine returns, sends translation.interim to client
 
 5. Provider sends final result → Server:
-   a. Maps to TranscriptResult { isFinal: true }
-   b. Stores in session transcript history
-   c. Sends transcription.final to client via WS
-   d. Sends text to LLM engine (async, non-blocking)
-   e. When LLM returns, sends translation.final to client
+    a. Maps to TranscriptResult { isFinal: true }
+    b. Stores in session transcript history
+    c. Sends transcription.final to client via WS
+    d. Sends text to configured final translation engine (async, non-blocking)
+    e. When final engine returns, sends translation.final to client
 
 6. Client sends session.end → Server:
    a. Calls provider.disconnect()
@@ -589,6 +611,18 @@ qwen-asr-demo-streaming \
 |-------|-----------|------|-----------|
 | Qwen3-ASR-0.6B | 600M | ~2-4 GB | 2000x at concurrency 128 |
 | **Qwen3-ASR-1.7B (default)** | **1.7B** | **~4-6 GB** | **High (vLLM optimized)** |
+
+### 5.5 Mac Support (Apple Silicon)
+
+Qwen3-ASR runs natively on Apple Silicon (M1/M2/M3/M4) via the `mlx-qwen3-asr` package:
+
+- Runtime: MLX (Apple's native ML framework, uses Metal GPU)
+- Model: mlx-community/Qwen3-ASR-1.7B-6bit (~2GB)
+- Performance: RTF 0.08 on M4 Pro (~5x faster than realtime)
+- Docker: Not supported (Docker Desktop cannot access Metal GPU)
+- Setup: `scripts/run-mac-asr.sh` (creates venv, installs deps, starts server)
+- Server: FastAPI WebSocket server (`qwen3-asr/src/server_mac.py`)
+- Same WebSocket protocol as GPU version — transparent to the translation server
 
 ---
 
@@ -682,11 +716,14 @@ services:
       - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       # Translation (server-managed providers, mode from SDK)
-      - TRANSLATION_NMT_PROVIDER=google
-      - TRANSLATION_LLM_PROVIDER=google
-      - TRANSLATION_LLM_MODEL=
+      - TRANSLATION_INTERIM_PROVIDER=google-nmt
+      - TRANSLATION_FINAL_PROVIDER=google-tllm
+      - TRANSLATION_INTERIM_MODEL=
+      - TRANSLATION_FINAL_MODEL=
       - CLAUDE_API_KEY=${CLAUDE_API_KEY}
       - GOOGLE_TRANSLATION_PROJECT_ID=${GOOGLE_TRANSLATION_PROJECT_ID}
+      - QWEN_TRANSLATION_URL=http://localhost:8002/v1
+      - QWEN_TRANSLATION_MODEL=Qwen/Qwen3-30B-A3B
       # Infrastructure
       - REDIS_URL=redis://redis:6379
       - DATABASE_URL=postgresql://user:pass@db:5432/translate
@@ -798,7 +835,8 @@ translate-service/
 │   │   │   ├── types.ts          # ITranslationEngine, TranslationResult
 │   │   │   ├── router.ts         # Translation engine router
 │   │   │   ├── nmt.ts            # Google NMT engine
-│   │   │   └── llm.ts            # LLM engine (Google Translation LLM / Claude)
+│   │   │   ├── llm.ts            # LLM engine (Google Translation LLM / Claude)
+│   │   │   └── qwen-local.ts     # Qwen local engine (OpenAI-compatible endpoint)
 │   │   ├── storage/
 │   │   │   ├── session-store.ts  # Session persistence
 │   │   │   └── usage-tracker.ts  # API usage metering
@@ -818,8 +856,10 @@ translate-service/
 ├── qwen3-asr/                    # Qwen3-ASR self-hosted ASR engine
 │   ├── Dockerfile.gpu
 │   ├── requirements.txt
+│   ├── requirements-mac.txt      # MLX dependencies for Mac
 │   ├── src/
-│   │   ├── server.py             # qwen-asr streaming server wrapper
+│   │   ├── server.py             # qwen-asr streaming server wrapper (GPU)
+│   │   ├── server_mac.py         # MLX-based server for Mac
 │   │   ├── config.py             # Model & server configuration
 │   │   └── health.py             # Health check endpoint
 │   └── models/                   # Model cache (gitignored)
@@ -858,6 +898,8 @@ translate-service/
 │
 └── scripts/
     ├── setup.sh                  # One-command dev environment setup
+    ├── run-mac-asr.sh            # Start Qwen3-ASR on Mac via MLX
+    ├── run-mac-translation.sh    # Start Qwen3 translation on Mac via vLLM-Metal
     ├── seed-db.sql               # Database schema + seed data
     └── benchmark/
         ├── korean-test-audio/    # Test audio files
