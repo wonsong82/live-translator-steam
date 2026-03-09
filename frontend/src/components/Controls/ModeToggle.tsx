@@ -24,7 +24,7 @@ export function ModeToggle() {
       <span className="text-xs font-medium hidden sm:inline">Interim</span>
       <div
         className={`relative w-9 h-5 rounded-full transition-colors ${
-          isHybrid ? 'bg-blue-600' : 'bg-slate-300'
+          isHybrid ? 'bg-red-600' : 'bg-slate-300'
         }`}
       >
         <div

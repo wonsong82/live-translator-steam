@@ -30,15 +30,15 @@ export function TargetPanel() {
           ) : (
             <div className="flex items-center gap-1.5 pt-1">
               <span
-                className="w-1.5 h-1.5 rounded-full bg-blue-300 animate-bounce"
+                className="w-1.5 h-1.5 rounded-full bg-red-300 animate-bounce"
                 style={{ animationDelay: '0ms' }}
               />
               <span
-                className="w-1.5 h-1.5 rounded-full bg-blue-300 animate-bounce"
+                className="w-1.5 h-1.5 rounded-full bg-red-300 animate-bounce"
                 style={{ animationDelay: '150ms' }}
               />
               <span
-                className="w-1.5 h-1.5 rounded-full bg-blue-300 animate-bounce"
+                className="w-1.5 h-1.5 rounded-full bg-red-300 animate-bounce"
                 style={{ animationDelay: '300ms' }}
               />
             </div>

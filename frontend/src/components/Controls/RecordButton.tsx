@@ -2,12 +2,14 @@ import { useTranslatorStore } from '../../store/useTranslatorStore';
 
 interface RecordButtonProps {
   onToggle: () => void;
+  dark?: boolean;
 }
 
-export function RecordButton({ onToggle }: RecordButtonProps) {
+export function RecordButton({ onToggle, dark }: RecordButtonProps) {
   const isRecording = useTranslatorStore((s) => s.isRecording);
   const connectionStatus = useTranslatorStore((s) => s.connectionStatus);
   const isConnecting = connectionStatus === 'connecting';
+  const glow = dark ? '' : 'shadow-lg shadow-red-100';
 
   return (
     <button
@@ -16,15 +18,13 @@ export function RecordButton({ onToggle }: RecordButtonProps) {
       aria-label={isRecording ? 'Stop recording' : 'Start recording'}
       className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all focus:outline-none focus:ring-4 focus:ring-offset-2 ${
         isRecording
-          ? 'bg-red-500 hover:bg-red-600 focus:ring-red-200 shadow-lg shadow-red-100'
+          ? `bg-red-500 hover:bg-red-600 focus:ring-red-200 ${glow}`
           : isConnecting
           ? 'bg-slate-300 cursor-not-allowed'
-          : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-200 shadow-lg shadow-blue-100 hover:scale-105 active:scale-100'
+          : `bg-red-600 hover:bg-red-700 focus:ring-red-200 ${glow} hover:scale-105 active:scale-100`
       }`}
     >
-      {isRecording && (
-        <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-50" />
-      )}
+
       <span className="relative z-10 text-white">
         {isRecording ? (
           <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">

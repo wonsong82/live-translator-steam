@@ -38,7 +38,7 @@ export default function Settings() {
               <div className="text-sm font-medium text-slate-800">Hybrid</div>
               <div className="text-xs text-slate-400 mt-0.5">Interim NMT + final LLM translation</div>
             </div>
-            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${mode === 'hybrid' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'}`}>
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${mode === 'hybrid' ? 'border-red-600 bg-red-600' : 'border-slate-300'}`}>
               {mode === 'hybrid' && <div className="w-2 h-2 rounded-full bg-white" />}
             </div>
           </button>
@@ -47,7 +47,7 @@ export default function Settings() {
               <div className="text-sm font-medium text-slate-800">Final Only</div>
               <div className="text-xs text-slate-400 mt-0.5">LLM translation on complete sentences only</div>
             </div>
-            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${mode === 'final-only' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'}`}>
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${mode === 'final-only' ? 'border-red-600 bg-red-600' : 'border-slate-300'}`}>
               {mode === 'final-only' && <div className="w-2 h-2 rounded-full bg-white" />}
             </div>
           </button>
