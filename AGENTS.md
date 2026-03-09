@@ -324,7 +324,7 @@ NODE_ENV=development
 LOG_LEVEL=debug
 
 # ASR Provider (server-managed, not client-controlled)
-ASR_PROVIDER=deepgram                    # google | deepgram | openai | qwen3-asr
+ASR_PROVIDER=deepgram                    # google | deepgram | openai | qwen-local
 ASR_MODEL=nova-3                         # provider-specific model name
 
 # ASR Provider Credentials
@@ -333,9 +333,10 @@ DEEPGRAM_API_KEY=
 OPENAI_API_KEY=
 
 # Translation (providers server-managed, mode from SDK per session)
-TRANSLATION_NMT_PROVIDER=google          # NMT engine for interim
-TRANSLATION_LLM_PROVIDER=google          # google | claude (LLM engine for final)
-TRANSLATION_LLM_MODEL=                   # optional model override
+TRANSLATION_INTERIM_PROVIDER=google      # google | claude | openai | qwen-local
+TRANSLATION_INTERIM_MODEL=nmt            # google: nmt|tllm, claude/openai: model id
+TRANSLATION_FINAL_PROVIDER=google        # google | claude | openai | qwen-local
+TRANSLATION_FINAL_MODEL=tllm             # google: nmt|tllm, claude/openai: model id
 CLAUDE_API_KEY=
 GOOGLE_TRANSLATION_PROJECT_ID=
 

@@ -7,7 +7,7 @@ export interface TranslationResult {
 
 export type TranslationEngineType = 'nmt' | 'llm';
 
-export type TranslationProviderType = 'google-nmt' | 'google-tllm' | 'claude' | 'qwen-local';
+export type TranslationProviderType = 'google' | 'claude' | 'openai' | 'qwen-local';
 
 export interface ITranslationEngine {
   translate(

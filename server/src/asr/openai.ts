@@ -39,15 +39,13 @@ export class OpenAIAdapter implements IASRProvider {
 
   async connect(config: ASRProviderConfig): Promise<void> {
     this.setState('connecting');
-    const model = config.model ?? 'gpt-4o-transcribe';
 
     return new Promise<void>((resolve, reject) => {
       this.ws = new WebSocket(
-        `${REALTIME_WS_URL}?model=${model}`,
+        `${REALTIME_WS_URL}?model=gpt-realtime`,
         {
           headers: {
             'Authorization': `Bearer ${this.apiKey}`,
-            'OpenAI-Beta': 'realtime=v1',
           },
         },
       );
@@ -123,21 +121,29 @@ export class OpenAIAdapter implements IASRProvider {
     if (this.ws?.readyState !== WebSocket.OPEN) return;
 
     this.ws.send(JSON.stringify({
-      type: 'transcription_session.update',
+      type: 'session.update',
       session: {
-        input_audio_format: 'pcm16',
-        input_audio_transcription: {
-          model: config.model ?? 'gpt-4o-transcribe',
-          language: config.language ?? 'ko',
+        type: 'realtime',
+        audio: {
+          input: {
+            format: {
+              type: 'audio/pcm',
+              rate: 24000,
+            },
+            noise_reduction: { type: 'near_field' },
+            transcription: {
+              model: config.model ?? 'gpt-4o-transcribe',
+              language: config.language ?? 'ko',
+            },
+            turn_detection: {
+              type: 'server_vad',
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 700,
+              create_response: false,
+            },
+          },
         },
-        turn_detection: {
-          type: 'server_vad',
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 700,
-          create_response: false,
-        },
-        input_audio_noise_reduction: { type: 'near_field' },
       },
     }));
   }

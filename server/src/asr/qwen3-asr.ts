@@ -2,13 +2,13 @@ import WebSocket from 'ws';
 import { ASRError, type ASRProviderConfig, type ConnectionState, type IASRProvider, type TranscriptResult } from './types.js';
 import { getLogger } from '../config/logger.js';
 
-export class Qwen3AsrAdapter implements IASRProvider {
+export class QwenLocalAsrAdapter implements IASRProvider {
   private ws: WebSocket | null = null;
   private state: ConnectionState = 'disconnected';
   private transcriptCallback: ((result: TranscriptResult) => void) | null = null;
   private errorCallback: ((error: ASRError) => void) | null = null;
   private stateCallback: ((state: ConnectionState) => void) | null = null;
-  private readonly log = getLogger().child({ module: 'asr-qwen3' });
+  private readonly log = getLogger().child({ module: 'asr-qwen-local' });
 
   constructor(
     private readonly host: string,
@@ -23,7 +23,7 @@ export class Qwen3AsrAdapter implements IASRProvider {
       this.ws = new WebSocket(url);
 
       this.ws.on('open', () => {
-        this.log.info({ host: this.host, port: this.port }, 'Qwen3-ASR connected');
+        this.log.info({ host: this.host, port: this.port }, 'Qwen local ASR connected');
 
         this.ws!.send(JSON.stringify({
           type: 'config',
@@ -41,13 +41,13 @@ export class Qwen3AsrAdapter implements IASRProvider {
 
       this.ws.on('error', (err) => {
         this.log.error({ err }, 'Qwen3-ASR WS error');
-        const asrError = new ASRError(err.message, 'CONNECTION_FAILED', 'qwen3-asr', true);
+        const asrError = new ASRError(err.message, 'CONNECTION_FAILED', 'qwen-local', true);
         this.errorCallback?.(asrError);
         reject(asrError);
       });
 
       this.ws.on('close', () => {
-        this.log.info('Qwen3-ASR connection closed');
+        this.log.info('Qwen local ASR connection closed');
         this.setState('disconnected');
       });
     });
@@ -103,7 +103,7 @@ export class Qwen3AsrAdapter implements IASRProvider {
       this.errorCallback?.(new ASRError(
         String(msg.text ?? 'Qwen3-ASR error'),
         'PROVIDER_ERROR',
-        'qwen3-asr',
+        'qwen-local',
         true,
       ));
     }

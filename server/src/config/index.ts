@@ -7,17 +7,17 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
 
-  ASR_PROVIDER: z.enum(['google', 'deepgram', 'openai', 'qwen3-asr']).default('deepgram'),
+  ASR_PROVIDER: z.enum(['google', 'deepgram', 'openai', 'qwen-local']).default('deepgram'),
   ASR_MODEL: z.string().optional(),
 
   GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
   DEEPGRAM_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
 
-  TRANSLATION_INTERIM_PROVIDER: z.enum(['google-nmt', 'google-tllm', 'claude', 'qwen-local']).default('google-nmt'),
-  TRANSLATION_FINAL_PROVIDER: z.enum(['google-nmt', 'google-tllm', 'claude', 'qwen-local']).default('google-tllm'),
-  TRANSLATION_INTERIM_MODEL: z.string().optional(),
-  TRANSLATION_FINAL_MODEL: z.string().optional(),
+  TRANSLATION_INTERIM_PROVIDER: z.enum(['google', 'claude', 'openai', 'qwen-local']).default('google'),
+  TRANSLATION_FINAL_PROVIDER: z.enum(['google', 'claude', 'openai', 'qwen-local']).default('google'),
+  TRANSLATION_INTERIM_MODEL: z.string().default('nmt'),
+  TRANSLATION_FINAL_MODEL: z.string().default('tllm'),
   CLAUDE_API_KEY: z.string().optional(),
   GOOGLE_TRANSLATION_PROJECT_ID: z.string().optional(),
   GOOGLE_TRANSLATION_LOCATION: z.string().default('us-central1'),
@@ -28,8 +28,7 @@ const envSchema = z.object({
   QWEN3_ASR_HOST: z.string().default('qwen3-asr'),
   QWEN3_ASR_PORT: z.coerce.number().default(8001),
 
-  REDIS_URL: z.string().default('redis://localhost:6379'),
-  DATABASE_URL: z.string().default('postgresql://user:pass@localhost:5432/translate'),
+
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
@@ -46,9 +45,9 @@ export interface ServerProviderConfig {
   readonly asrProvider: ASRProviderType;
   readonly asrModel?: string;
   readonly translationInterimProvider: TranslationProviderType;
-  readonly translationInterimModel?: string;
+  readonly translationInterimModel: string;
   readonly translationFinalProvider: TranslationProviderType;
-  readonly translationFinalModel?: string;
+  readonly translationFinalModel: string;
 }
 
 export function resolveProviderConfig(env: EnvConfig): ServerProviderConfig {

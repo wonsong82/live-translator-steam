@@ -17,15 +17,14 @@
     "@deepgram/sdk": "^3.9.0",
     "@google-cloud/speech": "^6.7.0",
     "@google-cloud/translate": "^9.3.0",
-    "ioredis": "^5.4.0",
-    "pg": "^8.13.0",
+    "openai": "^6.27.0",
     "pino": "^9.6.0",
     "ws": "^8.18.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@google-cloud/text-to-speech": "^6.4.0",
     "@types/node": "^22.0.0",
-    "@types/pg": "^8.11.0",
     "@types/ws": "^8.5.0",
     "eslint": "^9.0.0",
     "tsx": "^4.19.0",
