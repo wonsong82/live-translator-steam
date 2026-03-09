@@ -1,0 +1,14 @@
+FROM node:20-alpine
+WORKDIR /app/frontend
+
+RUN apk add --no-cache curl
+
+# Install all dependencies (including devDependencies)
+COPY package*.json ./
+RUN npm install
+
+# Config files (source code mounted as volume for hot reload)
+COPY tsconfig.json vite.config.ts tailwind.config.js postcss.config.js index.html ./
+
+EXPOSE 3000
+CMD ["npx", "vite"]
