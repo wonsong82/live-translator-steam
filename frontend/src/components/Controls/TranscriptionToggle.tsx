@@ -12,7 +12,7 @@ export function TranscriptionToggle() {
     >
       <div
         className={`relative w-9 h-5 rounded-full transition-colors ${
-          showTranscription ? 'bg-blue-600' : 'bg-slate-300'
+          showTranscription ? 'bg-red-600' : 'bg-slate-300'
         }`}
       >
         <div

@@ -32,7 +32,7 @@ export const useTranslatorStore = create<TranslatorStore>((set) => ({
     set((state) => ({
       sentences: [
         ...state.sentences,
-        { sourceText: text, translation: null, timestamp },
+        { sourceText: text, translation: state.currentInterimTranslation || null, timestamp },
       ],
       currentInterimSource: '',
       currentInterimTranslation: '',

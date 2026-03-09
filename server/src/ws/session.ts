@@ -28,6 +28,7 @@ export class Session {
   private mode: 'hybrid' | 'final-only';
   private asrProvider: IASRProvider | null = null;
   private sentenceIndex = 0;
+  private interimEpoch = 0;
   private alive = true;
 
   constructor(config: SessionConfig) {
@@ -117,6 +118,7 @@ export class Session {
         this.translateInterim(result.text);
       }
     } else {
+      this.interimEpoch++;
       const idx = this.sentenceIndex++;
       this.send({
         type: 'transcription.final',
@@ -132,9 +134,11 @@ export class Session {
   }
 
   private translateInterim(text: string): void {
+    const epoch = this.interimEpoch;
     this.translationRouter
       .translateInterim(text, this.sourceLanguage, this.targetLanguage)
       .then((result) => {
+        if (epoch !== this.interimEpoch) return;
         this.send({
           type: 'translation.interim',
           sourceText: result.sourceText,

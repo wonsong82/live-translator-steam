@@ -10,7 +10,7 @@ export function AudioVisualizer() {
       {BAR_MULTIPLIERS.map((multiplier, i) => (
         <div
           key={i}
-          className="w-1 rounded-full bg-blue-500 transition-all duration-75"
+          className="w-1 rounded-full bg-red-500 transition-all duration-75"
           style={{ height: `${Math.max(3, level * multiplier * 28)}px`, opacity: level > 0 ? 1 : 0.3 }}
         />
       ))}
