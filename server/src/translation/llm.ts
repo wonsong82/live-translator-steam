@@ -32,7 +32,7 @@ export class GoogleTllmEngine implements ITranslationEngine {
 
       const translation = response.translations?.[0];
       if (!translation?.translatedText) {
-        throw new TranslationError('Empty TLLM response', 'PROVIDER_ERROR', 'google-tllm', true);
+        throw new TranslationError('Empty TLLM response', 'PROVIDER_ERROR', 'google', true);
       }
 
       const latencyMs = Date.now() - start;
@@ -47,7 +47,7 @@ export class GoogleTllmEngine implements ITranslationEngine {
     } catch (err) {
       if (err instanceof TranslationError) throw err;
       const error = err as Error;
-      throw new TranslationError(error.message, 'PROVIDER_ERROR', 'google-tllm', true);
+      throw new TranslationError(error.message, 'PROVIDER_ERROR', 'google', true);
     }
   }
 

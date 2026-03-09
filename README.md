@@ -76,7 +76,7 @@ Set `ASR_PROVIDER` in your `.env` to one of these:
 | **Deepgram** | `deepgram` | Fastest, easiest setup, great Korean accuracy | API key only |
 | **Google Cloud STT** | `google` | High accuracy, enterprise-grade | Service account JSON file |
 | **OpenAI** | `openai` | Good accuracy, familiar brand | API key only |
-| **Qwen3-ASR** | `qwen3-asr` | Free, self-hosted, privacy-first | NVIDIA GPU (Linux) or Apple Silicon (Mac) |
+| **Qwen-Local** | `qwen-local` | Free, self-hosted, privacy-first | NVIDIA GPU (Linux) or Apple Silicon (Mac) |
 
 > **Recommended for getting started**: Deepgram. Sign up in 2 minutes, free tier available, no JSON files.
 
@@ -108,6 +108,23 @@ Set `ASR_MODEL=gpt-4o-transcribe` (default):
 | `gpt-4o-transcribe` | Medium | Standard (default) |
 | `gpt-4o-mini-transcribe` | ⚡ Fast | Cheaper, slightly lower accuracy |
 
+#### Qwen-Local Models (Self-Hosted)
+
+Set `ASR_PROVIDER=qwen-local` and `ASR_MODEL=Qwen/Qwen3-ASR-1.7B` (default). No API key needed — runs on your hardware.
+
+| Model | Size | Best For |
+|-------|------|----------|
+| `Qwen/Qwen3-ASR-1.7B` | 1.7B params | General Korean transcription, privacy-first (default) |
+
+Also set the host/port for where the Qwen-Local engine is running:
+```bash
+ASR_PROVIDER=qwen-local
+QWEN3_ASR_HOST=localhost      # or host.docker.internal if server runs in Docker
+QWEN3_ASR_PORT=8001
+```
+
+> Requires NVIDIA GPU (Linux) or Apple Silicon (Mac). See [Running Local Models](#running-local-models-mac) for setup.
+
 ---
 
 ### Translation
@@ -116,8 +133,8 @@ Translation is split into two stages. You configure each separately:
 
 | Stage | When | Available Providers | `.env` key |
 |-------|------|-------------------|-----------|
-| **Interim** (fast) | While speaking | `google-nmt`, `google-tllm`, `claude`, `qwen-local` | `TRANSLATION_INTERIM_PROVIDER` |
-| **Final** (quality) | After sentence | `google-nmt`, `google-tllm`, `claude`, `qwen-local` | `TRANSLATION_FINAL_PROVIDER` |
+| **Interim** (fast) | While speaking | `google`, `claude`, `openai`, `qwen-local` | `TRANSLATION_INTERIM_PROVIDER` |
+| **Final** (quality) | After sentence | `google`, `claude`, `openai`, `qwen-local` | `TRANSLATION_FINAL_PROVIDER` |
 
 #### Final Translation: Google TLLM vs Claude
 
@@ -131,6 +148,7 @@ Translation is split into two stages. You configure each separately:
 To use Claude for final translations:
 ```bash
 TRANSLATION_FINAL_PROVIDER=claude
+TRANSLATION_FINAL_MODEL=claude-sonnet-4-6
 CLAUDE_API_KEY=sk-ant-...
 ```
 
@@ -140,9 +158,17 @@ Set `TRANSLATION_FINAL_MODEL` when using Claude (leave blank for default):
 
 | Model | Speed | Quality | Cost |
 |-------|-------|---------|------|
-| `claude-haiku-4-20250514` | ⚡ Fastest | Good | Lowest |
-| `claude-sonnet-4-20250514` | Medium | Best balance (default) | Medium |
-| `claude-opus-4-20250514` | Slow | Highest quality | Highest |
+| `claude-haiku-4-5-20251001` | ⚡ Fastest | Good | Lowest |
+| `claude-sonnet-4-6` | Fast | Best balance (default) | Medium |
+| `claude-opus-4-6` | Moderate | Highest quality | Highest |
+
+#### OpenAI Translation Models
+
+| Model | Speed | Cost |
+|-------|-------|------|
+| `gpt-4.1-nano` | ⚡ Fastest | Lowest |
+| `gpt-4.1-mini` | Fast | Low (default) |
+| `gpt-4.1` | Moderate | Standard |
 
 #### Local Translation: Qwen3-30B-A3B (Self-Hosted)
 
@@ -273,8 +299,8 @@ GOOGLE_TRANSLATION_LOCATION=us-central1
 4. Add to `.env`:
    ```bash
    CLAUDE_API_KEY=sk-ant-...
-   TRANSLATION_LLM_PROVIDER=claude
-   TRANSLATION_LLM_MODEL=claude-sonnet-4-20250514
+   TRANSLATION_FINAL_PROVIDER=claude
+   TRANSLATION_FINAL_MODEL=claude-sonnet-4-6
    ```
 
 ---
@@ -295,7 +321,7 @@ Full list of every setting in your `.env` file:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ASR_PROVIDER` | `deepgram` | Which provider handles speech recognition: `deepgram`, `google`, `openai`, `qwen3-asr` |
+| `ASR_PROVIDER` | `deepgram` | Which provider handles speech recognition: `deepgram`, `google`, `openai`, `qwen-local` |
 | `ASR_MODEL` | *(provider default)* | Model override. Leave blank to use the provider's default. |
 
 ### ASR Credentials
@@ -310,10 +336,10 @@ Full list of every setting in your `.env` file:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `TRANSLATION_INTERIM_PROVIDER` | `google-nmt` | Fast translation while speaking. Options: `google-nmt`, `google-tllm`, `claude`, `qwen-local` |
-| `TRANSLATION_FINAL_PROVIDER` | `google-tllm` | Quality translation after sentence ends. Options: `google-nmt`, `google-tllm`, `claude`, `qwen-local` |
-| `TRANSLATION_INTERIM_MODEL` | *(provider default)* | Model override for interim translation engine. |
-| `TRANSLATION_FINAL_MODEL` | *(provider default)* | Model override for final translation engine. |
+| `TRANSLATION_INTERIM_PROVIDER` | `google` | Fast translation while speaking. Options: `google`, `claude`, `openai`, `qwen-local` |
+| `TRANSLATION_FINAL_PROVIDER` | `google` | Quality translation after sentence ends. Options: `google`, `claude`, `openai`, `qwen-local` |
+| `TRANSLATION_INTERIM_MODEL` | `nmt` | Model override for interim translation engine. |
+| `TRANSLATION_FINAL_MODEL` | `tllm` | Model override for final translation engine. |
 | `GOOGLE_TRANSLATION_PROJECT_ID` | *(required)* | Your Google Cloud project ID |
 | `GOOGLE_TRANSLATION_LOCATION` | `us-central1` | Google Cloud region. Use `us-central1` for TLLM, `global` is also OK for NMT. |
 | `CLAUDE_API_KEY` | *(optional)* | Your Anthropic API key (required if using Claude for translation) |
@@ -327,13 +353,6 @@ Full list of every setting in your `.env` file:
 | `QWEN3_ASR_ENABLED` | `false` | Set to `true` to enable the self-hosted ASR engine |
 | `QWEN3_ASR_HOST` | `qwen3-asr` | Hostname of the Qwen3-ASR container |
 | `QWEN3_ASR_PORT` | `8001` | Port of the Qwen3-ASR container |
-
-### Infrastructure
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `REDIS_URL` | `redis://redis:6379` | Redis connection string (no change needed for Docker Compose) |
-| `DATABASE_URL` | `postgresql://user:pass@db:5432/translate` | Postgres connection string (no change needed for Docker Compose) |
 
 ### Frontend
 
@@ -360,7 +379,7 @@ Uses `mlx-qwen3-asr` (MLX backend, Metal GPU acceleration):
 
 First run creates a Python venv and downloads the model (~2GB). Set in `.env`:
 ```bash
-ASR_PROVIDER=qwen3-asr
+ASR_PROVIDER=qwen-local
 QWEN3_ASR_HOST=localhost
 QWEN3_ASR_PORT=8001
 ```
@@ -396,14 +415,14 @@ Run everything on your Mac. Zero API keys needed:
 ./scripts/run-mac-translation.sh
 
 # Terminal 3: Start server + frontend
-docker compose up -d db redis server frontend
+docker compose up -d server frontend
 
 # Open http://localhost:3000
 ```
 
 `.env` for fully local:
 ```bash
-ASR_PROVIDER=qwen3-asr
+ASR_PROVIDER=qwen-local
 QWEN3_ASR_HOST=host.docker.internal
 QWEN3_ASR_PORT=8001
 TRANSLATION_INTERIM_PROVIDER=qwen-local
@@ -442,8 +461,10 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ASR_PROVIDER=deepgram
 DEEPGRAM_API_KEY=your_deepgram_key
 
-TRANSLATION_INTERIM_PROVIDER=google-nmt
-TRANSLATION_FINAL_PROVIDER=google-tllm
+TRANSLATION_INTERIM_PROVIDER=google
+TRANSLATION_INTERIM_MODEL=nmt
+TRANSLATION_FINAL_PROVIDER=google
+TRANSLATION_FINAL_MODEL=tllm
 GOOGLE_APPLICATION_CREDENTIALS=/secrets/google-creds.json
 GOOGLE_TRANSLATION_PROJECT_ID=your-project-id
 ```
@@ -453,8 +474,10 @@ GOOGLE_TRANSLATION_PROJECT_ID=your-project-id
 ASR_PROVIDER=deepgram
 DEEPGRAM_API_KEY=your_deepgram_key
 
-TRANSLATION_INTERIM_PROVIDER=google-nmt
+TRANSLATION_INTERIM_PROVIDER=google
+TRANSLATION_INTERIM_MODEL=nmt
 TRANSLATION_FINAL_PROVIDER=claude
+TRANSLATION_FINAL_MODEL=claude-sonnet-4-6
 GOOGLE_APPLICATION_CREDENTIALS=/secrets/google-creds.json
 GOOGLE_TRANSLATION_PROJECT_ID=your-project-id
 CLAUDE_API_KEY=sk-ant-...
@@ -463,15 +486,17 @@ CLAUDE_API_KEY=sk-ant-...
 **All Google**
 ```bash
 ASR_PROVIDER=google
-TRANSLATION_INTERIM_PROVIDER=google-nmt
-TRANSLATION_FINAL_PROVIDER=google-tllm
+TRANSLATION_INTERIM_PROVIDER=google
+TRANSLATION_INTERIM_MODEL=nmt
+TRANSLATION_FINAL_PROVIDER=google
+TRANSLATION_FINAL_MODEL=tllm
 GOOGLE_APPLICATION_CREDENTIALS=/secrets/google-creds.json
 GOOGLE_TRANSLATION_PROJECT_ID=your-project-id
 ```
 
 **Fully Local (Mac, no API keys)**
 ```bash
-ASR_PROVIDER=qwen3-asr
+ASR_PROVIDER=qwen-local
 QWEN3_ASR_HOST=host.docker.internal
 QWEN3_ASR_PORT=8001
 

@@ -16,7 +16,7 @@ export interface ASRProviderConfig {
   readonly options?: Record<string, unknown>;
 }
 
-export type ASRProviderType = 'google' | 'deepgram' | 'openai' | 'qwen3-asr';
+export type ASRProviderType = 'google' | 'deepgram' | 'openai' | 'qwen-local';
 
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error';
 

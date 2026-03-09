@@ -26,7 +26,7 @@ export const openaiRealtimeConfigSchema = z.object({
   noiseReduction: z.enum(['near_field', 'far_field']).default('near_field'),
 });
 
-export const qwen3AsrConfigSchema = z.object({
+export const qwenLocalAsrConfigSchema = z.object({
   host: z.string().default('qwen3-asr'),
   port: z.number().default(8001),
   model: z.string().default('Qwen/Qwen3-ASR-1.7B'),
@@ -36,4 +36,4 @@ export const qwen3AsrConfigSchema = z.object({
 export type GoogleSttConfig = z.infer<typeof googleSttConfigSchema>;
 export type DeepgramConfig = z.infer<typeof deepgramConfigSchema>;
 export type OpenAIRealtimeConfig = z.infer<typeof openaiRealtimeConfigSchema>;
-export type Qwen3AsrConfig = z.infer<typeof qwen3AsrConfigSchema>;
+export type QwenLocalAsrConfig = z.infer<typeof qwenLocalAsrConfigSchema>;

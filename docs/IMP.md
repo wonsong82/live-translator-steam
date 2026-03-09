@@ -113,7 +113,7 @@ Reference: TRD.md §13
 - [x] `scripts/run-mac-translation.sh` — venv setup + vLLM-Metal Qwen3-30B-A3B launch
 - [x] `.gitignore` updated for `.venv*/`
 - [x] Flexible translation pipeline: interim and final stages independently configurable
-- [x] 4 translation providers: `google-nmt`, `google-tllm`, `claude`, `qwen-local`
+- [x] 5 translation providers: `google`, `claude`, `openai`, `qwen-local`
 - [x] `docker-compose.yml` updated with new env var names + local model passthrough
 - [x] `.env.example` updated with `TRANSLATION_INTERIM_PROVIDER`, `TRANSLATION_FINAL_PROVIDER`, `QWEN_TRANSLATION_URL`, `QWEN_TRANSLATION_MODEL`
 

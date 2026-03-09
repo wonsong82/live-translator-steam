@@ -321,11 +321,11 @@ Provider selection is **server-managed**. The SDK sends audio and receives resul
 
 ```typescript
 interface ServerProviderConfig {
-  asrProvider: 'google' | 'deepgram' | 'openai' | 'qwen3-asr';
+  asrProvider: 'google' | 'deepgram' | 'openai' | 'qwen-local';
   asrModel?: string;
 
-  translationInterimProvider: 'google-nmt' | 'google-tllm' | 'claude' | 'qwen-local';
-  translationFinalProvider: 'google-nmt' | 'google-tllm' | 'claude' | 'qwen-local';
+  translationInterimProvider: 'google' | 'claude' | 'openai' | 'qwen-local';
+  translationFinalProvider: 'google' | 'claude' | 'openai' | 'qwen-local';
   translationInterimModel?: string;
   translationFinalModel?: string;
 }
@@ -335,10 +335,10 @@ interface ServerProviderConfig {
 ```bash
 ASR_PROVIDER=deepgram
 ASR_MODEL=nova-3
-TRANSLATION_INTERIM_PROVIDER=google-nmt
-TRANSLATION_FINAL_PROVIDER=google-tllm
-TRANSLATION_INTERIM_MODEL=
-TRANSLATION_FINAL_MODEL=
+TRANSLATION_INTERIM_PROVIDER=google
+TRANSLATION_INTERIM_MODEL=nmt
+TRANSLATION_FINAL_PROVIDER=google
+TRANSLATION_FINAL_MODEL=tllm
 QWEN_TRANSLATION_URL=http://localhost:8002/v1
 QWEN_TRANSLATION_MODEL=Qwen/Qwen3-30B-A3B
 ```
@@ -375,7 +375,7 @@ interface TranscriptResult {
 }
 
 interface ASRProviderConfig {
-  provider: 'google' | 'deepgram' | 'openai' | 'qwen3-asr';
+  provider: 'google' | 'deepgram' | 'openai' | 'qwen-local';
   apiKey?: string;
   region?: string;
   model?: string;
@@ -475,7 +475,7 @@ GPU requirement: ~4-6GB VRAM
 ### 4.4 Translation Interface
 
 ```typescript
-type TranslationProviderType = 'google-nmt' | 'google-tllm' | 'claude' | 'qwen-local';
+type TranslationProviderType = 'google' | 'claude' | 'openai' | 'qwen-local';
 
 interface TranslationResult {
   sourceText: string;
@@ -716,10 +716,10 @@ services:
       - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       # Translation (server-managed providers, mode from SDK)
-      - TRANSLATION_INTERIM_PROVIDER=google-nmt
-      - TRANSLATION_FINAL_PROVIDER=google-tllm
-      - TRANSLATION_INTERIM_MODEL=
-      - TRANSLATION_FINAL_MODEL=
+      - TRANSLATION_INTERIM_PROVIDER=google
+      - TRANSLATION_INTERIM_MODEL=nmt
+      - TRANSLATION_FINAL_PROVIDER=google
+      - TRANSLATION_FINAL_MODEL=tllm
       - CLAUDE_API_KEY=${CLAUDE_API_KEY}
       - GOOGLE_TRANSLATION_PROJECT_ID=${GOOGLE_TRANSLATION_PROJECT_ID}
       - QWEN_TRANSLATION_URL=http://localhost:8002/v1

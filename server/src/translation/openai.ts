@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import type { ITranslationEngine, TranslationResult } from './types.js';
 import { TranslationError } from './types.js';
 import { getLogger } from '../config/logger.js';
@@ -9,12 +9,12 @@ const SYSTEM_PROMPT = `You are a professional Korean-English translator. Transla
 - Natural English phrasing
 Respond with ONLY the translated text. No explanations, no quotation marks.`;
 
-export class ClaudeEngine implements ITranslationEngine {
-  private readonly client: Anthropic;
-  private readonly log = getLogger().child({ module: 'translation-claude' });
+export class OpenAIEngine implements ITranslationEngine {
+  private readonly client: OpenAI;
+  private readonly log = getLogger().child({ module: 'translation-openai' });
 
-  constructor(apiKey: string, private readonly model = 'claude-sonnet-4-6') {
-    this.client = new Anthropic({ apiKey });
+  constructor(apiKey: string, private readonly model = 'gpt-4.1-mini') {
+    this.client = new OpenAI({ apiKey });
   }
 
   async translate(text: string, sourceLang: string, targetLang: string): Promise<TranslationResult> {
@@ -22,26 +22,27 @@ export class ClaudeEngine implements ITranslationEngine {
     const direction = `${sourceLang} to ${targetLang}`;
 
     try {
-      const response = await this.client.messages.create({
+      const response = await this.client.chat.completions.create({
         model: this.model,
         max_tokens: 1024,
-        system: SYSTEM_PROMPT,
+        temperature: 0.3,
         messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: `Translate from ${direction}:\n${text}` },
         ],
       });
 
-      const block = response.content[0];
-      if (block?.type !== 'text' || !block.text) {
-        throw new TranslationError('Empty Claude response', 'PROVIDER_ERROR', 'claude', true);
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new TranslationError('Empty OpenAI response', 'PROVIDER_ERROR', 'openai', true);
       }
 
       const latencyMs = Date.now() - start;
-      this.log.debug({ sourceLang, targetLang, latencyMs, model: this.model }, 'Claude translation complete');
+      this.log.debug({ sourceLang, targetLang, latencyMs, model: this.model }, 'OpenAI translation complete');
 
       return {
         sourceText: text,
-        translatedText: block.text.trim(),
+        translatedText: content.trim(),
         engine: 'llm',
         latencyMs,
       };
@@ -49,7 +50,7 @@ export class ClaudeEngine implements ITranslationEngine {
       if (err instanceof TranslationError) throw err;
       const error = err as Error & { status?: number };
       const code = error.status === 401 ? 'AUTH_ERROR' : error.status === 429 ? 'RATE_LIMIT' : 'PROVIDER_ERROR';
-      throw new TranslationError(error.message, code, 'claude', code !== 'AUTH_ERROR');
+      throw new TranslationError(error.message, code, 'openai', code !== 'AUTH_ERROR');
     }
   }
 

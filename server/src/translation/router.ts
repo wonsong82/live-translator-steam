@@ -3,6 +3,7 @@ import type { EnvConfig } from '../config/index.js';
 import { GoogleNmtEngine } from './nmt.js';
 import { GoogleTllmEngine } from './llm.js';
 import { ClaudeEngine } from './claude.js';
+import { OpenAIEngine } from './openai.js';
 import { QwenLocalEngine } from './qwen-local.js';
 
 export interface TranslationRouter {
@@ -11,22 +12,25 @@ export interface TranslationRouter {
   destroy(): Promise<void>;
 }
 
-function createEngine(provider: TranslationProviderType, env: EnvConfig, modelOverride?: string): ITranslationEngine {
+function createEngine(provider: TranslationProviderType, model: string, env: EnvConfig): ITranslationEngine {
   switch (provider) {
-    case 'google-nmt':
+    case 'google':
+      if (model === 'tllm') {
+        return new GoogleTllmEngine(env.GOOGLE_TRANSLATION_PROJECT_ID ?? '', env.GOOGLE_TRANSLATION_LOCATION);
+      }
       return new GoogleNmtEngine(env.GOOGLE_TRANSLATION_PROJECT_ID ?? '');
-    case 'google-tllm':
-      return new GoogleTllmEngine(env.GOOGLE_TRANSLATION_PROJECT_ID ?? '', env.GOOGLE_TRANSLATION_LOCATION);
     case 'claude':
-      return new ClaudeEngine(env.CLAUDE_API_KEY ?? '', modelOverride);
+      return new ClaudeEngine(env.CLAUDE_API_KEY ?? '', model || undefined);
+    case 'openai':
+      return new OpenAIEngine(env.OPENAI_API_KEY ?? '', model || undefined);
     case 'qwen-local':
-      return new QwenLocalEngine(env.QWEN_TRANSLATION_URL, modelOverride ?? env.QWEN_TRANSLATION_MODEL);
+      return new QwenLocalEngine(env.QWEN_TRANSLATION_URL, model || env.QWEN_TRANSLATION_MODEL);
   }
 }
 
 export function createTranslationRouter(envConfig: EnvConfig): TranslationRouter {
-  const interimEngine = createEngine(envConfig.TRANSLATION_INTERIM_PROVIDER, envConfig, envConfig.TRANSLATION_INTERIM_MODEL);
-  const finalEngine = createEngine(envConfig.TRANSLATION_FINAL_PROVIDER, envConfig, envConfig.TRANSLATION_FINAL_MODEL);
+  const interimEngine = createEngine(envConfig.TRANSLATION_INTERIM_PROVIDER, envConfig.TRANSLATION_INTERIM_MODEL, envConfig);
+  const finalEngine = createEngine(envConfig.TRANSLATION_FINAL_PROVIDER, envConfig.TRANSLATION_FINAL_MODEL, envConfig);
 
   return {
     async translateInterim(text: string, sourceLang: string, targetLang: string): Promise<TranslationResult> {
