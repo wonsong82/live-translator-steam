@@ -31,12 +31,15 @@ export function useTranslator(): TranslatorHook {
     const sentenceOffset = store.sentences.length;
     store.setConnectionStatus('connecting');
 
+    const savedMode = localStorage.getItem('translationMode');
+    const mode = savedMode === 'final-only' ? 'final-only' : 'hybrid';
+
     const sdk = TranslateSDK.init({
       serverUrl: WS_URL,
       apiKey: '',
       sourceLanguage: 'ko',
       targetLanguage: 'en',
-      mode: 'hybrid',
+      mode,
       onTranscriptionInterim: (data) => {
         useTranslatorStore.getState().setInterimSource(data.text);
       },

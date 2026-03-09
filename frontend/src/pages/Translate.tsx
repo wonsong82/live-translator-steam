@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { AudioVisualizer } from '../components/AudioVisualizer';
 import { RecordButton } from '../components/Controls/RecordButton';
+import { ModeToggle } from '../components/Controls/ModeToggle';
 import { TranscriptionToggle } from '../components/Controls/TranscriptionToggle';
 import { StatusBar } from '../components/StatusBar';
 import { SourcePanel } from '../components/TranslationPanel/SourcePanel';
@@ -63,6 +64,9 @@ export default function Translate() {
       <div className="bg-white border-t border-slate-200 px-6 py-4 flex items-center justify-center relative shrink-0">
         <div className="absolute left-6">
           <TranscriptionToggle />
+        </div>
+        <div className="absolute right-6">
+          <ModeToggle />
         </div>
         <div className="flex flex-col items-center gap-2">
           <AudioVisualizer />
