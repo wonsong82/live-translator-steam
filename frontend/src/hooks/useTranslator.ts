@@ -28,6 +28,7 @@ export function useTranslator(): TranslatorHook {
   const start = useCallback((): void => {
     if (sdkRef.current) return;
     const store = useTranslatorStore.getState();
+    const sentenceOffset = store.sentences.length;
     store.setConnectionStatus('connecting');
 
     const sdk = TranslateSDK.init({
@@ -46,7 +47,7 @@ export function useTranslator(): TranslatorHook {
         useTranslatorStore.getState().setInterimTranslation(data.translatedText);
       },
       onTranslationFinal: (data) => {
-        useTranslatorStore.getState().setTranslation(data.sentenceIndex, data.translatedText);
+        useTranslatorStore.getState().setTranslation(sentenceOffset + data.sentenceIndex, data.translatedText);
       },
       onStatusChange: (status) => {
         const s = useTranslatorStore.getState();
