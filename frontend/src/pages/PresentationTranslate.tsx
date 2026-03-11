@@ -113,7 +113,7 @@ export default function PresentationTranslate() {
         )}
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+       <div className="flex flex-1 overflow-hidden relative">
         {showTranscription && (
           <>
             <div ref={koreanRef} className="flex-1 overflow-y-auto px-6 py-4 pb-40">
@@ -170,33 +170,33 @@ export default function PresentationTranslate() {
             <div className="flex items-center justify-center h-full">
               <p className="text-[#333] text-sm text-center select-none">English translation will appear here</p>
             </div>
-          )}
-        </div>
-      </div>
+           )}
+         </div>
 
-       <div className="bg-[#111] border-t border-[#222] px-6 py-4 flex items-center justify-center relative shrink-0">
-         <div className="absolute left-6">
-           <TranscriptionToggle />
-         </div>
-         <div className="absolute right-6">
-           <ModeToggle />
-         </div>
-           <div className="flex flex-col items-center gap-2">
-             <AudioVisualizer />
-             <RecordButton onToggle={handleToggle} dark />
-             <span className="text-xs text-[#555] font-medium">
-               {startError ? 'Error: ' + startError : isRecording ? 'Recording — tap to pause' : 'Paused — tap to resume'}
-             </span>
-           </div>
+         {showOverlay && roomId && (
+           <RoomOverlay
+             roomId={roomId}
+             viewerCount={viewerCount}
+             onDismiss={() => setShowOverlay(false)}
+           />
+         )}
        </div>
 
-       {showOverlay && roomId && (
-         <RoomOverlay
-           roomId={roomId}
-           viewerCount={viewerCount}
-           onDismiss={() => setShowOverlay(false)}
-         />
-       )}
+        <div className="bg-[#111] border-t border-[#222] px-6 py-4 flex items-center justify-center relative shrink-0">
+          <div className="absolute left-6">
+            <TranscriptionToggle />
+          </div>
+          <div className="absolute right-6">
+            <ModeToggle />
+          </div>
+            <div className="flex flex-col items-center gap-2">
+              <AudioVisualizer />
+              <RecordButton onToggle={handleToggle} dark />
+              <span className="text-xs text-[#555] font-medium">
+                {startError ? 'Error: ' + startError : isRecording ? 'Recording — tap to pause' : 'Paused — tap to resume'}
+              </span>
+            </div>
+        </div>
      </div>
    );
 }
