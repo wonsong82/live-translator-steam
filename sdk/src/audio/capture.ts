@@ -27,21 +27,48 @@ export class AudioCapture {
   private frameBuffer = new Float32Array(0);
   private onFrame: AudioFrameCallback | null = null;
   private _active = false;
+  private _deviceId: string | undefined = undefined;
 
   get active(): boolean {
     return this._active;
   }
 
-  async start(onFrame: AudioFrameCallback): Promise<void> {
-    this.onFrame = onFrame;
+  getDeviceId(): string | undefined {
+    return this._deviceId;
+  }
 
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
+  async start(onFrame: AudioFrameCallback, deviceId?: string): Promise<void> {
+    this.onFrame = onFrame;
+    this._deviceId = deviceId;
+
+    const baseAudioConstraints = {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    };
+
+    const audioConstraints = deviceId
+      ? { ...baseAudioConstraints, deviceId: { exact: deviceId } }
+      : baseAudioConstraints;
+
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: audioConstraints,
+      });
+    } catch (err) {
+      // If OverconstrainedError with exact deviceId, retry without it
+      if (
+        (err instanceof DOMException && err.name === 'OverconstrainedError') ||
+        (err as { name?: string })?.name === 'OverconstrainedError'
+      ) {
+        // Retry without deviceId constraint
+        this.stream = await navigator.mediaDevices.getUserMedia({
+          audio: baseAudioConstraints,
+        });
+      } else {
+        throw err;
+      }
+    }
 
     this.context = new AudioContext();
     const nativeSampleRate = this.context.sampleRate;

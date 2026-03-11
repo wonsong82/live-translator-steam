@@ -29,6 +29,7 @@ function createInstance(config: TranslateSDKConfig): TranslateSDKInstance {
   const emitter = new EventEmitter<SDKEvents>();
   const audio = new AudioCapture();
   const wsClient = new WSClient(config.serverUrl);
+  const deviceId = config.deviceId;
 
   if (config.onTranscriptionInterim) emitter.on('transcriptionInterim', config.onTranscriptionInterim);
   if (config.onTranscriptionFinal) emitter.on('transcriptionFinal', config.onTranscriptionFinal);
@@ -125,7 +126,7 @@ function createInstance(config: TranslateSDKConfig): TranslateSDKInstance {
 
       await audio.start((pcm16Frame) => {
         wsClient.sendAudio(pcm16Frame);
-      });
+      }, deviceId);
 
       state.recording = true;
     },
@@ -138,7 +139,7 @@ function createInstance(config: TranslateSDKConfig): TranslateSDKInstance {
     async resume(): Promise<void> {
       await audio.start((pcm16Frame) => {
         wsClient.sendAudio(pcm16Frame);
-      });
+      }, deviceId);
       state.recording = true;
     },
 

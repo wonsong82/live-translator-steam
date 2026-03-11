@@ -8,6 +8,7 @@ export interface TranslateSDKConfig {
   readonly sourceLanguage: string;
   readonly targetLanguage: string;
   readonly mode: TranslationMode;
+  readonly deviceId?: string;
   readonly onTranscriptionInterim?: (data: TranscriptionInterimEvent) => void;
   readonly onTranscriptionFinal?: (data: TranscriptionFinalEvent) => void;
   readonly onTranslationInterim?: (data: TranslationInterimEvent) => void;
