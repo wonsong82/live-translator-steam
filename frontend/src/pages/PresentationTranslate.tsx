@@ -4,7 +4,6 @@ import { AudioVisualizer } from '../components/AudioVisualizer';
 import { RecordButton } from '../components/Controls/RecordButton';
 import { ModeToggle } from '../components/Controls/ModeToggle';
 import { TranscriptionToggle } from '../components/Controls/TranscriptionToggle';
-import { MicPicker } from '../components/Controls/MicPicker';
 import { StatusBar } from '../components/StatusBar';
 import { SettingsOverlay } from '../components/SettingsOverlay';
 import { RoomOverlay } from '../components/RoomOverlay';
@@ -206,10 +205,7 @@ export default function PresentationTranslate() {
           </div>
              <div className="flex flex-col items-center gap-2">
                <AudioVisualizer />
-               <div className="flex items-center gap-3">
-                 <MicPicker dark />
-                 <RecordButton onToggle={handleToggle} dark />
-               </div>
+                <RecordButton onToggle={handleToggle} dark />
                 <span className="text-xs text-[#555] font-medium">
                   {startError ? 'Error: ' + startError : isRecording ? 'Recording — tap to pause' : isStarted ? 'Paused — tap to resume' : 'Tap to start'}
                 </span>

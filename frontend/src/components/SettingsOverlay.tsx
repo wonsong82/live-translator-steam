@@ -142,7 +142,7 @@ export function SettingsOverlay({ open, onClose, showMicSelector }: SettingsOver
                     </div>
                   ) : (
                     devices.map((device, index) => {
-                      const isSelected = device.deviceId === selectedDeviceId;
+                      const isSelected = selectedDeviceId ? device.deviceId === selectedDeviceId : index === 0;
                       const label = device.label || `Microphone ${index + 1}`;
                       
                       return (

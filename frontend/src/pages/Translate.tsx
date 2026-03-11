@@ -4,7 +4,6 @@ import { AudioVisualizer } from '../components/AudioVisualizer';
 import { RecordButton } from '../components/Controls/RecordButton';
 import { ModeToggle } from '../components/Controls/ModeToggle';
 import { TranscriptionToggle } from '../components/Controls/TranscriptionToggle';
-import { MicPicker } from '../components/Controls/MicPicker';
 import { StatusBar } from '../components/StatusBar';
 import { SettingsOverlay } from '../components/SettingsOverlay';
 import { SourcePanel } from '../components/TranslationPanel/SourcePanel';
@@ -77,10 +76,7 @@ export default function Translate() {
         </div>
         <div className="flex flex-col items-center gap-2">
           <AudioVisualizer />
-          <div className="flex items-center gap-3">
-            <MicPicker />
-            <RecordButton onToggle={handleToggle} />
-          </div>
+          <RecordButton onToggle={handleToggle} />
           <span className="text-xs text-slate-400 font-medium">
             {isRecording ? 'Recording — tap to stop' : 'Tap to record'}
           </span>
