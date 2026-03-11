@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useTranslatorStore } from '../store/useTranslatorStore';
 import { useViewer } from '../hooks/useViewer';
 
@@ -41,12 +41,7 @@ export default function ViewerPage() {
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a] overflow-hidden">
       <div className="flex items-center px-5 py-3 bg-[#111] border-b border-[#222] gap-3 shrink-0">
-        <Link to="/" aria-label="Back to home" className="text-[#555] hover:text-[#999] transition-colors p-1 -ml-1 rounded-lg hover:bg-[#1a1a1a]">
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-        </Link>
-        <span className="font-semibold text-[#999] text-sm">Viewing Room: {roomId}</span>
+         <span className="font-semibold text-[#999] text-sm">Viewing Room: {roomId}</span>
         <div className="flex-1" />
         {!isConnected && (
           <span className="text-xs text-[#666] font-medium">{getStatusText()}</span>

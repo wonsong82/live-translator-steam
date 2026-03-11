@@ -19,7 +19,7 @@ export function RoomOverlay({ roomId, viewerCount, onDismiss }: RoomOverlayProps
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80">
       <div className="bg-[#111] border border-[#222] rounded-xl p-8 flex flex-col items-center gap-6 max-w-sm w-full mx-4">
         <div className="flex w-full justify-between items-center">
           <span className="text-[#888] text-sm font-medium uppercase tracking-widest">Live Room</span>
@@ -35,6 +35,8 @@ export function RoomOverlay({ roomId, viewerCount, onDismiss }: RoomOverlayProps
         <div className="text-5xl font-mono tracking-widest text-white select-all">{roomId}</div>
 
         <QRCodeSVG value={url} size={200} bgColor="transparent" fgColor="#fff" />
+
+        <p className="text-xs text-[#666] break-all text-center select-all w-full px-2">{url}</p>
 
         <button
           onClick={handleCopy}
