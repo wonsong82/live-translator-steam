@@ -14,6 +14,8 @@ export interface TranslateSDKConfig {
   readonly onTranslationFinal?: (data: TranslationFinalEvent) => void;
   readonly onStatusChange?: (status: ConnectionStatus) => void;
   readonly onError?: (error: TranslateSDKError) => void;
+  readonly onRoomCreated?: (data: { roomId: string }) => void;
+  readonly onRoomError?: (data: { code: string; message: string }) => void;
 }
 
 export interface TranscriptionInterimEvent {
@@ -64,4 +66,26 @@ export interface TranslateSDKInstance {
   isRecording(): boolean;
   getTranscript(): TranscriptState;
   getTranslations(): Record<number, string>;
+  createRoom(): Promise<{ roomId: string }>;
+  destroyRoom(): void;
+}
+
+export interface ViewerConfig {
+  readonly serverUrl: string;
+  readonly roomId: string;
+  readonly apiKey: string;
+  readonly onTranscriptionInterim?: (data: TranscriptionInterimEvent) => void;
+  readonly onTranscriptionFinal?: (data: TranscriptionFinalEvent) => void;
+  readonly onTranslationInterim?: (data: TranslationInterimEvent) => void;
+  readonly onTranslationFinal?: (data: TranslationFinalEvent) => void;
+  readonly onStatusChange?: (status: ConnectionStatus) => void;
+  readonly onError?: (error: TranslateSDKError) => void;
+  readonly onRoomError?: (data: { code: string; message: string }) => void;
+}
+
+export interface ViewerInstance {
+  connect(): void;
+  disconnect(): void;
+  destroy(): void;
+  getStatus(): ConnectionStatus;
 }
