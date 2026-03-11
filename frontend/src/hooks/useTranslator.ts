@@ -1,23 +1,29 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslatorStore } from '../store/useTranslatorStore';
+import { useRoomStore } from '../store/useRoomStore';
 import { TranslateSDK, type TranslateSDKInstance } from 'translate-sdk';
 
 export interface TranslatorHook {
-  start: () => void;
+  start: () => Promise<void>;
   stop: () => void;
+  pause: () => void;
+  resume: () => Promise<void>;
   destroy: () => void;
   createRoom: () => Promise<string>;
+  isStarted: boolean;
 }
 
 const WS_URL = (import.meta.env.VITE_WS_URL as string | undefined) ?? 'ws://localhost:8080/ws';
 
 export function useTranslator(): TranslatorHook {
   const sdkRef = useRef<TranslateSDKInstance | null>(null);
+  const [isStarted, setIsStarted] = useState(false);
 
   useEffect(() => {
     return () => {
       sdkRef.current?.destroy();
       sdkRef.current = null;
+      setIsStarted(false);
       const store = useTranslatorStore.getState();
       store.setRecording(false);
       store.setConnectionStatus('disconnected');
@@ -26,7 +32,7 @@ export function useTranslator(): TranslatorHook {
     };
   }, []);
 
-  const start = useCallback((): void => {
+  const start = useCallback(async (): Promise<void> => {
     if (sdkRef.current) return;
     const store = useTranslatorStore.getState();
     const sentenceOffset = store.sentences.length;
@@ -59,33 +65,55 @@ export function useTranslator(): TranslatorHook {
         if (status === 'connected') s.setRecording(true);
         if (status === 'disconnected' || status === 'error') s.setRecording(false);
       },
-      onError: (err) => {
-        useTranslatorStore.getState().setError(err.message);
-      },
-    });
+       onError: (err) => {
+         useTranslatorStore.getState().setError(err.message);
+       },
+       onViewerCountChange: (data) => {
+         useRoomStore.getState().setViewerCount(data.count);
+       },
+     });
 
     sdkRef.current = sdk;
-    sdk.start().catch((err: unknown) => {
+    setIsStarted(true);
+    await sdk.start().catch((err: unknown) => {
       const message = err instanceof Error ? err.message : 'Failed to start recording';
       useTranslatorStore.getState().setError(message);
       useTranslatorStore.getState().setConnectionStatus('error');
       sdk.destroy();
       sdkRef.current = null;
+      setIsStarted(false);
+      throw err;
     });
   }, []);
 
   const stop = useCallback((): void => {
     sdkRef.current?.destroy();
     sdkRef.current = null;
+    setIsStarted(false);
     const store = useTranslatorStore.getState();
     store.setRecording(false);
     store.setInterimSource('');
     store.setInterimTranslation('');
   }, []);
 
+  const pause = useCallback((): void => {
+    sdkRef.current?.stop();
+    const store = useTranslatorStore.getState();
+    store.setRecording(false);
+    store.setInterimSource('');
+    store.setInterimTranslation('');
+  }, []);
+
+  const resume = useCallback(async (): Promise<void> => {
+    if (!sdkRef.current) return;
+    await sdkRef.current.resume();
+    useTranslatorStore.getState().setRecording(true);
+  }, []);
+
   const destroy = useCallback((): void => {
     sdkRef.current?.destroy();
     sdkRef.current = null;
+    setIsStarted(false);
     useTranslatorStore.getState().reset();
   }, []);
 
@@ -95,5 +123,5 @@ export function useTranslator(): TranslatorHook {
     return roomId;
   }, []);
 
-  return { start, stop, destroy, createRoom };
+  return { start, stop, pause, resume, destroy, createRoom, isStarted };
 }

@@ -15,7 +15,7 @@ export function RecordButton({ onToggle, dark }: RecordButtonProps) {
     <button
       onClick={onToggle}
       disabled={isConnecting}
-      aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+      aria-label={isRecording ? 'Pause recording' : 'Resume recording'}
       className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all focus:outline-none focus:ring-4 focus:ring-offset-2 ${
         isRecording
           ? `bg-red-500 hover:bg-red-600 focus:ring-red-200 ${glow}`
@@ -28,7 +28,8 @@ export function RecordButton({ onToggle, dark }: RecordButtonProps) {
       <span className="relative z-10 text-white">
         {isRecording ? (
           <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-            <rect x="6" y="6" width="12" height="12" rx="2" />
+            <rect x="6" y="4" width="4" height="16" rx="1" />
+            <rect x="14" y="4" width="4" height="16" rx="1" />
           </svg>
         ) : (
           <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">

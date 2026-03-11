@@ -447,4 +447,168 @@ describe('WSGateway — room integration', () => {
     expect(errorMsg).toBeDefined();
     expect(errorMsg!.code).toBe('ROOM_ERROR');
   });
+
+  // -------------------------------------------------------------------------
+  // Test 12: Presenter receives room.viewerCount when viewer joins
+  // -------------------------------------------------------------------------
+  it('presenter receives room.viewerCount when viewer joins', async () => {
+    const presenterWs = mockWs();
+    const viewerWs = mockWs();
+    const gw = asPrivate(gateway);
+
+    gw.handleConnection(presenterWs);
+    gw.handleMessage(presenterWs, JSON.stringify({ type: 'session.start' }), false);
+
+    await vi.waitFor(() => findSent(presenterWs, (m) => m.type === 'session.status') !== undefined, { timeout: 1000 });
+
+    gw.handleMessage(presenterWs, JSON.stringify({ type: 'room.create' }), false);
+
+    const roomCreated = findSent(presenterWs, (m) => m.type === 'room.created');
+    const roomId = roomCreated!.roomId as string;
+
+    // Clear previous messages to isolate the viewer join event
+    (presenterWs.send as ReturnType<typeof vi.fn>).mockClear();
+
+    gw.handleConnection(viewerWs);
+    gw.handleMessage(viewerWs, JSON.stringify({ type: 'room.join', roomId }), false);
+
+    const viewerCountMsg = findSent(presenterWs, (m) => m.type === 'room.viewerCount');
+    expect(viewerCountMsg).toBeDefined();
+    expect(viewerCountMsg!.count).toBe(1);
+  });
+
+  // -------------------------------------------------------------------------
+  // Test 13: Presenter receives room.viewerCount when viewer leaves
+  // -------------------------------------------------------------------------
+  it('presenter receives room.viewerCount when viewer leaves', async () => {
+    const presenterWs = mockWs();
+    const viewerWs = mockWs();
+    const gw = asPrivate(gateway);
+
+    gw.handleConnection(presenterWs);
+    gw.handleMessage(presenterWs, JSON.stringify({ type: 'session.start' }), false);
+
+    await vi.waitFor(() => findSent(presenterWs, (m) => m.type === 'session.status') !== undefined, { timeout: 1000 });
+
+    gw.handleMessage(presenterWs, JSON.stringify({ type: 'room.create' }), false);
+
+    const roomCreated = findSent(presenterWs, (m) => m.type === 'room.created');
+    const roomId = roomCreated!.roomId as string;
+
+    gw.handleConnection(viewerWs);
+    gw.handleMessage(viewerWs, JSON.stringify({ type: 'room.join', roomId }), false);
+
+    // Clear messages to isolate the leave event
+    (presenterWs.send as ReturnType<typeof vi.fn>).mockClear();
+
+    gw.handleMessage(viewerWs, JSON.stringify({ type: 'room.leave' }), false);
+
+    const viewerCountMsg = findSent(presenterWs, (m) => m.type === 'room.viewerCount');
+    expect(viewerCountMsg).toBeDefined();
+    expect(viewerCountMsg!.count).toBe(0);
+  });
+
+  // -------------------------------------------------------------------------
+  // Test 14: Presenter receives room.viewerCount on viewer disconnect (handleClose)
+  // -------------------------------------------------------------------------
+  it('presenter receives room.viewerCount on viewer disconnect (handleClose)', async () => {
+    const presenterWs = mockWs();
+    const viewerWs = mockWs();
+    const gw = asPrivate(gateway);
+
+    gw.handleConnection(presenterWs);
+    gw.handleMessage(presenterWs, JSON.stringify({ type: 'session.start' }), false);
+
+    await vi.waitFor(() => findSent(presenterWs, (m) => m.type === 'session.status') !== undefined, { timeout: 1000 });
+
+    gw.handleMessage(presenterWs, JSON.stringify({ type: 'room.create' }), false);
+
+    const roomCreated = findSent(presenterWs, (m) => m.type === 'room.created');
+    const roomId = roomCreated!.roomId as string;
+
+    gw.handleConnection(viewerWs);
+    gw.handleMessage(viewerWs, JSON.stringify({ type: 'room.join', roomId }), false);
+
+    // Clear messages to isolate the close event
+    (presenterWs.send as ReturnType<typeof vi.fn>).mockClear();
+
+    gw.handleClose(viewerWs, 1000, Buffer.from(''));
+
+    const viewerCountMsg = findSent(presenterWs, (m) => m.type === 'room.viewerCount');
+    expect(viewerCountMsg).toBeDefined();
+    expect(viewerCountMsg!.count).toBe(0);
+  });
+
+  // -------------------------------------------------------------------------
+  // Test 15: Viewer does NOT receive room.viewerCount on join
+  // -------------------------------------------------------------------------
+  it('viewer does NOT receive room.viewerCount on join', async () => {
+    const presenterWs = mockWs();
+    const viewerWs = mockWs();
+    const gw = asPrivate(gateway);
+
+    gw.handleConnection(presenterWs);
+    gw.handleMessage(presenterWs, JSON.stringify({ type: 'session.start' }), false);
+
+    await vi.waitFor(() => findSent(presenterWs, (m) => m.type === 'session.status') !== undefined, { timeout: 1000 });
+
+    gw.handleMessage(presenterWs, JSON.stringify({ type: 'room.create' }), false);
+
+    const roomCreated = findSent(presenterWs, (m) => m.type === 'room.created');
+    const roomId = roomCreated!.roomId as string;
+
+    gw.handleConnection(viewerWs);
+    gw.handleMessage(viewerWs, JSON.stringify({ type: 'room.join', roomId }), false);
+
+    const viewerCountMsg = findSent(viewerWs, (m) => m.type === 'room.viewerCount');
+    expect(viewerCountMsg).toBeUndefined();
+  });
+
+  // -------------------------------------------------------------------------
+  // Test 16: Multiple viewers — count accurate
+  // -------------------------------------------------------------------------
+  it('multiple viewers — count accurate', async () => {
+    const presenterWs = mockWs();
+    const viewer1 = mockWs();
+    const viewer2 = mockWs();
+    const viewer3 = mockWs();
+    const gw = asPrivate(gateway);
+
+    gw.handleConnection(presenterWs);
+    gw.handleMessage(presenterWs, JSON.stringify({ type: 'session.start' }), false);
+
+    await vi.waitFor(() => findSent(presenterWs, (m) => m.type === 'session.status') !== undefined, { timeout: 1000 });
+
+    gw.handleMessage(presenterWs, JSON.stringify({ type: 'room.create' }), false);
+
+    const roomCreated = findSent(presenterWs, (m) => m.type === 'room.created');
+    const roomId = roomCreated!.roomId as string;
+
+    // Join 3 viewers
+    gw.handleConnection(viewer1);
+    gw.handleMessage(viewer1, JSON.stringify({ type: 'room.join', roomId }), false);
+
+    gw.handleConnection(viewer2);
+    gw.handleMessage(viewer2, JSON.stringify({ type: 'room.join', roomId }), false);
+
+    gw.handleConnection(viewer3);
+    gw.handleMessage(viewer3, JSON.stringify({ type: 'room.join', roomId }), false);
+
+    // Find the last viewerCount message (should be count: 3)
+    const calls = (presenterWs.send as ReturnType<typeof vi.fn>).mock.calls;
+    const viewerCountMsgs = calls
+      .map((call) => JSON.parse(call[0] as string) as Record<string, unknown>)
+      .filter((msg) => msg.type === 'room.viewerCount');
+    expect(viewerCountMsgs[viewerCountMsgs.length - 1]!.count).toBe(3);
+
+    // Clear messages to isolate the disconnect event
+    (presenterWs.send as ReturnType<typeof vi.fn>).mockClear();
+
+    // One viewer disconnects
+    gw.handleClose(viewer1, 1000, Buffer.from(''));
+
+    const viewerCountMsg = findSent(presenterWs, (m) => m.type === 'room.viewerCount');
+    expect(viewerCountMsg).toBeDefined();
+    expect(viewerCountMsg!.count).toBe(2);
+  });
 });

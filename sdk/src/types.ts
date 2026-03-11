@@ -16,6 +16,7 @@ export interface TranslateSDKConfig {
   readonly onError?: (error: TranslateSDKError) => void;
   readonly onRoomCreated?: (data: { roomId: string }) => void;
   readonly onRoomError?: (data: { code: string; message: string }) => void;
+  readonly onViewerCountChange?: (data: { count: number }) => void;
 }
 
 export interface TranscriptionInterimEvent {
@@ -58,6 +59,7 @@ export interface TranscriptState {
 export interface TranslateSDKInstance {
   start(): Promise<void>;
   stop(): void;
+  resume(): Promise<void>;
   destroy(): void;
   setSourceLanguage(lang: string): void;
   setTargetLanguage(lang: string): void;
