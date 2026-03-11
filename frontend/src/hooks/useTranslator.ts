@@ -32,21 +32,24 @@ export function useTranslator(): TranslatorHook {
     };
   }, []);
 
-  const start = useCallback(async (): Promise<void> => {
-    if (sdkRef.current) return;
-    const store = useTranslatorStore.getState();
-    const sentenceOffset = store.sentences.length;
-    store.setConnectionStatus('connecting');
+   const start = useCallback(async (): Promise<void> => {
+     if (sdkRef.current) return;
+     const store = useTranslatorStore.getState();
+     const sentenceOffset = store.sentences.length;
+     store.setConnectionStatus('connecting');
 
-    const savedMode = localStorage.getItem('translationMode');
-    const mode = savedMode === 'final-only' ? 'final-only' : 'hybrid';
+     const savedMode = localStorage.getItem('translationMode');
+     const mode = savedMode === 'final-only' ? 'final-only' : 'hybrid';
 
-    const sdk = TranslateSDK.init({
-      serverUrl: WS_URL,
-      apiKey: '',
-      sourceLanguage: 'ko',
-      targetLanguage: 'en',
-      mode,
+     const deviceId = localStorage.getItem('selectedMicDeviceId') ?? undefined;
+
+     const sdk = TranslateSDK.init({
+       serverUrl: WS_URL,
+       apiKey: '',
+       sourceLanguage: 'ko',
+       targetLanguage: 'en',
+       mode,
+       deviceId,
       onTranscriptionInterim: (data) => {
         useTranslatorStore.getState().setInterimSource(data.text);
       },
