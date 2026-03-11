@@ -527,6 +527,7 @@ Record significant architectural decisions here. When a decision is made, add an
 | 2026-02-21 | Server-side provider routing | Keeps API keys secure, enables provider switching without client changes, allows server-side session persistence | Direct-to-provider from browser (exposes keys, limits Google gRPC) |
 | 2026-02-21 | CER over WER for Korean benchmarks | Korean spacing ambiguity makes WER unreliable; CER is the standard for CJK evaluation | WER with normalized spacing |
 | 2026-02-21 | Docker-first development | Qwen3-ASR requires GPU passthrough, multi-service orchestration needed, production parity from day one | Local development with virtual environments |
+| 2026-03-11 | In-memory room broadcast via Session.onSend() listener | Single EC2 instance, 20-200 viewers per room — no Redis needed. Session.onSend() hook keeps Session room-unaware while enabling broadcast. JSON.stringify once + ws.send() × N with per-viewer try/catch prevents slow clients blocking the loop. Room destroyed immediately on presenter disconnect. | Redis pub/sub (overkill for single instance), WebSocket fan-out via server-sent events (more complex), direct Session modification (coupling violation) |
 
 ---
 

@@ -969,6 +969,158 @@ translate-service/
 
 ---
 
+## 14. Room Broadcast Architecture
+
+### 14.1 Overview
+
+One presenter speaks Korean; 20–200 viewers join via shared link or QR code and see the live transcript + English translation in real-time, read-only. Viewers connect to the same server room via WebSocket — no audio, no session, no history on late join.
+
+```
+Presenter (mic + SDK) ──ws──► WSGateway ──room.create──► RoomManager
+                                                              │
+Viewer 1 (no mic) ──ws──► WSGateway ──room.join──► Room.viewers Set
+Viewer 2 (no mic) ──ws──► WSGateway ──room.join──► Room.viewers Set
+                                                              │
+                         Session.onSend listener ────────────►│ broadcast()
+                         (transcription.*/translation.*)      │
+                                                       ws.send × N viewers
+```
+
+### 14.2 Server Components
+
+#### RoomManager (`server/src/ws/room-manager.ts`)
+
+In-memory room registry. No persistence — rooms are destroyed on presenter disconnect or server restart.
+
+```typescript
+interface Room {
+  readonly roomId: string;
+  readonly presenterWs: WebSocket;
+  readonly viewers: Set<WebSocket>;
+  readonly createdAt: Date;
+}
+```
+
+| Method | Description |
+|--------|-------------|
+| `createRoom(presenterWs)` | Generates 6-char uppercase hex code, stores room, returns roomId |
+| `joinRoom(roomCode, viewerWs)` | Adds viewer to Set; returns false if not found or at capacity (200) |
+| `leaveRoom(roomCode, viewerWs)` | Removes viewer from Set |
+| `broadcast(roomCode, message)` | `JSON.stringify()` once, `ws.send()` × N viewers with per-viewer try/catch |
+| `destroyRoom(roomCode)` | `ws.close(1000)` all viewers, delete room from Map |
+| `getRoomByPresenter(ws)` | Iterate rooms to find by presenter identity |
+| `getViewerCount(roomCode)` | Returns `viewers.size` |
+
+Broadcast performance: JSON serialized once outside the loop; dead viewers (readyState ≠ OPEN) removed during broadcast.
+
+#### WSGateway Integration (`server/src/ws/gateway.ts`)
+
+New properties added to gateway:
+- `private readonly rooms = new RoomManager()` — room lifecycle
+- `private readonly viewers = new Set<WebSocket>()` — viewer WS tracking (separate from sessions)
+- `private readonly viewerRooms = new Map<WebSocket, string>()` — viewer→roomId mapping
+
+New message cases in `handleControlMessage`:
+
+| Message | Handler | Requires |
+|---------|---------|---------|
+| `room.create` | `handleRoomCreate` | Active session on sender WS. Subscribes `session.onSend` to broadcast. Responds with `room.created { roomId }` |
+| `room.join { roomId }` | `handleRoomJoin` | Valid roomId. Adds viewer to room + viewers set. Responds with `room.joined { roomId }` |
+| `room.leave` | `handleRoomLeave` | Viewer in a room. Removes viewer from room + viewers set |
+
+Additional gateway behaviours:
+- Viewer binary audio → rejected with `VIEWER_NO_AUDIO` error
+- `startHeartbeat` pings both sessions and viewer WebSockets
+- `handleClose` for presenter → `destroyRoom()` (closes all viewer WS with code 1000)
+- `handleClose` for viewer → `leaveRoom()`, remove from tracking maps
+- `shutdown` → destroys all rooms before stopping sessions
+
+#### Session.onSend Hook (`server/src/ws/session.ts`)
+
+Minimal additive change (~10 lines). Listeners registered via `session.onSend(cb)` are called after `ws.send()` for `transcription.*` and `translation.*` messages only. Listener errors are isolated (one failure doesn't break others). Session remains room-unaware.
+
+### 14.3 SDK Components
+
+#### ViewerClient (`sdk/src/transport/viewer-client.ts`)
+
+Lightweight browser WebSocket client for viewers:
+- Sends `room.join { roomId }` on open (never `session.start`)
+- Sends `room.leave` on disconnect
+- Heartbeat ping every 30s (prevents proxy timeouts)
+- Exponential backoff reconnection; re-sends `room.join` on reconnect
+- No `sendAudio()`, no `AudioCapture`
+
+#### TranslateSDK.view(config)
+
+```typescript
+TranslateSDK.view({
+  serverUrl: 'wss://…',
+  roomId: 'A3F2C1',
+  apiKey: '',
+  onTranscriptionInterim?: (data) => void,
+  onTranscriptionFinal?: (data) => void,
+  onTranslationInterim?: (data) => void,
+  onTranslationFinal?: (data) => void,
+  onStatusChange?: (status: ConnectionStatus) => void,
+  onError?: (err) => void,
+  onRoomError?: (data) => void,
+}): ViewerInstance
+```
+
+Returns `ViewerInstance` with `connect()`, `disconnect()`, `destroy()`, `getStatus()`.
+
+#### TranslateSDKInstance.createRoom()
+
+```typescript
+instance.createRoom(): Promise<{ roomId: string }>
+instance.destroyRoom(): void
+```
+
+Sends `room.create` message; resolves when `room.created` received from server.
+
+### 14.4 Frontend Components
+
+| Component | Path | Description |
+|-----------|------|-------------|
+| `useRoomStore` | `frontend/src/store/useRoomStore.ts` | Zustand store: roomId, viewerCount, isPresenter, isViewer |
+| `useViewer` | `frontend/src/hooks/useViewer.ts` | Gets roomId from `useParams`, calls `TranslateSDK.view()`, wires callbacks to `useTranslatorStore`, manages lifecycle |
+| `RoomOverlay` | `frontend/src/components/RoomOverlay.tsx` | Presenter overlay: 6-char room code (large mono), QR code (`qrcode.react`), copy link, viewer count, dismiss button |
+| `ViewerPage` | `frontend/src/pages/ViewerPage.tsx` | Read-only page at `/view/:roomId`. Dual-panel Korean/English. No mic, no controls. Shows connecting/error states. |
+
+Presenter flow: Start recording → click "Create Room" button in header → `createRoom()` → `RoomOverlay` appears with code + QR.
+
+Viewer flow: Open `{origin}/view/{roomId}` → `useViewer` connects → live transcript + translation appears.
+
+### 14.5 Room Message Protocol
+
+**Client → Server:**
+| Type | Payload | Description |
+|------|---------|-------------|
+| `room.create` | — | Presenter creates a room (requires active session) |
+| `room.join` | `{ roomId: string }` | Viewer joins a room |
+| `room.leave` | — | Viewer leaves a room |
+
+**Server → Client:**
+| Type | Payload | Description |
+|------|---------|-------------|
+| `room.created` | `{ roomId: string }` | Room created successfully |
+| `room.joined` | `{ roomId: string }` | Viewer joined successfully |
+| `room.error` | `{ code: string, message: string }` | Error: `ROOM_NOT_FOUND`, `ROOM_FULL`, `ROOM_ERROR` |
+| `room.viewerCount` | `{ count: number }` | Broadcast to presenter on viewer join/leave |
+
+Viewers receive standard `transcription.*` and `translation.*` messages directly (no wrapper).
+
+### 14.6 Constraints
+
+- In-memory only — no Redis, no database, no persistence across server restarts
+- Max 200 viewers per room (constant `MAX_VIEWERS_PER_ROOM`)
+- Room destroyed immediately when presenter WebSocket closes
+- Late-join viewers start from empty — no transcript history sync
+- One presenter per room (no co-presenting)
+- Room code is the only auth — anyone with the code can join
+
+---
+
 ## 13. Phase 1 Milestones
 
 | # | Milestone | Deliverable |
