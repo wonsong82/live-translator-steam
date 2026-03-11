@@ -31,8 +31,11 @@ export default function ViewerPage() {
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) {
       void document.exitFullscreen();
-    } else {
+    } else if (document.documentElement.requestFullscreen) {
       void document.documentElement.requestFullscreen();
+    } else {
+      // Mobile Safari fallback — no Fullscreen API, toggle immersive mode
+      setIsFullscreen((prev) => !prev);
     }
   }, []);
 
@@ -58,36 +61,29 @@ export default function ViewerPage() {
 
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a] overflow-hidden">
-      <div className="flex items-center px-5 py-3 bg-[#111] border-b border-[#222] gap-3 shrink-0">
-         <span className="font-semibold text-[#999] text-sm">Viewing Room: {roomId}</span>
-        <div className="flex-1" />
-        {!isConnected && (
-          <span className="text-xs text-[#666] font-medium">{getStatusText()}</span>
-        )}
-        <button
-          onClick={toggleFullscreen}
-          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-          className="text-[#555] hover:text-[#999] transition-colors p-1 rounded-lg hover:bg-[#1a1a1a]"
-        >
-          {isFullscreen ? (
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <polyline strokeLinecap="round" strokeLinejoin="round" points="4 14 8 14 8 18" />
-              <polyline strokeLinecap="round" strokeLinejoin="round" points="20 10 16 10 16 6" />
-              <polyline strokeLinecap="round" strokeLinejoin="round" points="14 4 14 8 18 8" />
-              <polyline strokeLinecap="round" strokeLinejoin="round" points="10 20 10 16 6 16" />
-            </svg>
-          ) : (
+      {!isFullscreen && (
+        <div className="flex items-center px-5 py-3 bg-[#111] border-b border-[#222] gap-3 shrink-0">
+           <span className="font-semibold text-[#999] text-sm">Viewing Room: {roomId}</span>
+          <div className="flex-1" />
+          {!isConnected && (
+            <span className="text-xs text-[#666] font-medium">{getStatusText()}</span>
+          )}
+          <button
+            onClick={toggleFullscreen}
+            aria-label="Enter fullscreen"
+            className="text-[#555] hover:text-[#999] transition-colors p-1 rounded-lg hover:bg-[#1a1a1a]"
+          >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <polyline strokeLinecap="round" strokeLinejoin="round" points="15 3 21 3 21 9" />
               <polyline strokeLinecap="round" strokeLinejoin="round" points="9 21 3 21 3 15" />
               <polyline strokeLinecap="round" strokeLinejoin="round" points="21 3 14 10" />
               <polyline strokeLinecap="round" strokeLinejoin="round" points="3 21 10 14" />
             </svg>
-          )}
-        </button>
-      </div>
+          </button>
+        </div>
+      )}
 
-      <div className="flex bg-[#111] border-b border-[#222] shrink-0">
+      <div className={`flex bg-[#111] border-b border-[#222] shrink-0 ${isFullscreen ? 'relative' : ''}`}>
         {showTranscription ? (
           <>
             <div className="flex-1 px-5 py-2 flex items-center justify-between">
@@ -108,17 +104,34 @@ export default function ViewerPage() {
             <div className="w-px bg-[#222]" />
             <div className="flex-1 px-5 py-2 flex items-center justify-between">
               <span className="text-xs font-semibold text-[#555] uppercase tracking-widest">English</span>
-              <button
-                onClick={() => setShowInterim(!showInterim)}
-                aria-label={showInterim ? 'Hide interim' : 'Show interim'}
-                title={showInterim ? 'Hide interim translations' : 'Show interim translations'}
-                className={`transition-colors ${showInterim ? 'text-[#888]' : 'text-[#555] hover:text-[#888]'}`}
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowInterim(!showInterim)}
+                  aria-label={showInterim ? 'Hide interim' : 'Show interim'}
+                  title={showInterim ? 'Hide interim translations' : 'Show interim translations'}
+                  className={`transition-colors ${showInterim ? 'text-[#888]' : 'text-[#555] hover:text-[#888]'}`}
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                </button>
+                {isFullscreen && (
+                  <button
+                    onClick={toggleFullscreen}
+                    aria-label="Exit fullscreen"
+                    title="Exit fullscreen"
+                    className="text-[#555] hover:text-[#888] transition-colors"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <polyline strokeLinecap="round" strokeLinejoin="round" points="4 14 8 14 8 18" />
+                      <polyline strokeLinecap="round" strokeLinejoin="round" points="20 10 16 10 16 6" />
+                      <polyline strokeLinecap="round" strokeLinejoin="round" points="14 4 14 8 18 8" />
+                      <polyline strokeLinecap="round" strokeLinejoin="round" points="10 20 10 16 6 16" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
           </>
         ) : (
@@ -139,17 +152,34 @@ export default function ViewerPage() {
               <div className="w-px self-stretch bg-[#333]" />
               <span className="text-xs font-semibold text-[#555] uppercase tracking-widest pl-5 py-2">English Translation</span>
             </div>
-            <button
-              onClick={() => setShowInterim(!showInterim)}
-              aria-label={showInterim ? 'Hide interim' : 'Show interim'}
-              title={showInterim ? 'Hide interim translations' : 'Show interim translations'}
-              className={`transition-colors px-5 py-2 ${showInterim ? 'text-[#888]' : 'text-[#555] hover:text-[#888]'}`}
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
-              </svg>
-            </button>
+            <div className="flex items-center">
+              <button
+                onClick={() => setShowInterim(!showInterim)}
+                aria-label={showInterim ? 'Hide interim' : 'Show interim'}
+                title={showInterim ? 'Hide interim translations' : 'Show interim translations'}
+                className={`transition-colors px-5 py-2 ${showInterim ? 'text-[#888]' : 'text-[#555] hover:text-[#888]'}`}
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+              </button>
+              {isFullscreen && (
+                <button
+                  onClick={toggleFullscreen}
+                  aria-label="Exit fullscreen"
+                  title="Exit fullscreen"
+                  className="text-[#555] hover:text-[#888] transition-colors pr-5 py-2"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <polyline strokeLinecap="round" strokeLinejoin="round" points="4 14 8 14 8 18" />
+                    <polyline strokeLinecap="round" strokeLinejoin="round" points="20 10 16 10 16 6" />
+                    <polyline strokeLinecap="round" strokeLinejoin="round" points="14 4 14 8 18 8" />
+                    <polyline strokeLinecap="round" strokeLinejoin="round" points="10 20 10 16 6 16" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
