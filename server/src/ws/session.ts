@@ -30,6 +30,7 @@ export class Session {
   private sentenceIndex = 0;
   private interimEpoch = 0;
   private alive = true;
+  private readonly sendListeners: Array<(msg: Record<string, unknown>) => void> = [];
 
   constructor(config: SessionConfig) {
     this.ws = config.ws;
@@ -102,6 +103,10 @@ export class Session {
     this.alive = false;
   }
 
+  onSend(listener: (msg: Record<string, unknown>) => void): void {
+    this.sendListeners.push(listener);
+  }
+
   private handleTranscript(result: TranscriptResult): void {
     if (!result.text) return;
 
@@ -170,6 +175,12 @@ export class Session {
   private send(message: Record<string, unknown>): void {
     if (this.ws.readyState === 1) {
       this.ws.send(JSON.stringify(message));
+      const msgType = message.type as string | undefined;
+      if (msgType?.startsWith('transcription.') || msgType?.startsWith('translation.')) {
+        for (const listener of this.sendListeners) {
+          try { listener(message); } catch { /* ignore listener errors */ }
+        }
+      }
     }
   }
 }
