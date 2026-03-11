@@ -12,7 +12,7 @@ import { useRoomStore } from '../store/useRoomStore';
 
 export default function PresentationTranslate() {
   const navigate = useNavigate();
-  const { start, pause, resume, destroy, createRoom } = useTranslator();
+  const { start, pause, resume, destroy, createRoom, isStarted } = useTranslator();
   const isRecording = useTranslatorStore((s) => s.isRecording);
   const showTranscription = useTranslatorStore((s) => s.showTranscription);
   const sentences = useTranslatorStore((s) => s.sentences);
@@ -39,10 +39,15 @@ export default function PresentationTranslate() {
   const handleToggle = useCallback(async (): Promise<void> => {
     if (isRecording) {
       pause();
-    } else {
+    } else if (isStarted) {
       await resume();
+    } else {
+      await start().catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Failed to start recording';
+        setStartError(msg);
+      });
     }
-  }, [isRecording, pause, resume]);
+  }, [isRecording, isStarted, pause, resume, start]);
 
   const handleExit = useCallback((): void => {
     destroy(); // calls destroy() — full teardown
@@ -192,9 +197,9 @@ export default function PresentationTranslate() {
             <div className="flex flex-col items-center gap-2">
               <AudioVisualizer />
               <RecordButton onToggle={handleToggle} dark />
-              <span className="text-xs text-[#555] font-medium">
-                {startError ? 'Error: ' + startError : isRecording ? 'Recording — tap to pause' : 'Paused — tap to resume'}
-              </span>
+               <span className="text-xs text-[#555] font-medium">
+                 {startError ? 'Error: ' + startError : isRecording ? 'Recording — tap to pause' : isStarted ? 'Paused — tap to resume' : 'Tap to start'}
+               </span>
             </div>
         </div>
      </div>

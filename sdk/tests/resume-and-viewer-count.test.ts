@@ -1,7 +1,15 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TranslateSDK } from '../src/index.js';
 import { parseServerMessage } from '../src/transport/protocol.js';
 import type { TranslateSDKConfig } from '../src/types.js';
+
+vi.mock('../src/audio/capture.js', () => ({
+  AudioCapture: vi.fn().mockImplementation(() => ({
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn(),
+    active: false,
+  })),
+}));
 
 describe('SDK resume() and room.viewerCount', () => {
   describe('resume() method', () => {
@@ -65,6 +73,67 @@ describe('SDK resume() and room.viewerCount', () => {
 
       const instance = TranslateSDK.init(config);
       expect(instance).toBeDefined();
+    });
+
+    describe('onViewerCountChange callback behavior', () => {
+      const createMockWsInstance = () => ({
+        send: vi.fn(),
+        close: vi.fn(),
+        readyState: 1,
+        onopen: null as ((event: Event) => void) | null,
+        onmessage: null as ((event: MessageEvent) => void) | null,
+        onclose: null as ((event: CloseEvent) => void) | null,
+        onerror: null as ((event: Event) => void) | null,
+      });
+
+      let mockWsInstance: ReturnType<typeof createMockWsInstance>;
+      let MockWebSocket: ReturnType<typeof vi.fn>;
+
+      beforeEach(() => {
+        mockWsInstance = createMockWsInstance();
+        MockWebSocket = vi.fn(() => mockWsInstance);
+        (MockWebSocket as unknown as { OPEN: number }).OPEN = 1;
+        vi.stubGlobal('WebSocket', MockWebSocket);
+      });
+
+      afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+        vi.clearAllTimers();
+      });
+
+      it('fires onViewerCountChange callback when room.viewerCount message is received', async () => {
+        const onViewerCountChange = vi.fn();
+        const config: TranslateSDKConfig = {
+          serverUrl: 'ws://localhost:8080/ws',
+          apiKey: 'test-key',
+          sourceLanguage: 'ko',
+          targetLanguage: 'en',
+          mode: 'hybrid',
+          onViewerCountChange,
+        };
+
+        const instance = TranslateSDK.init(config);
+
+        // Call start() to trigger wsClient.connect() which registers the message handler
+        const startPromise = instance.start();
+
+        // Simulate WebSocket connection opening
+        mockWsInstance.onopen?.(new Event('open'));
+
+        // Wait for start() to complete
+        await startPromise;
+
+        // Simulate receiving a room.viewerCount message
+        mockWsInstance.onmessage?.(
+          new MessageEvent('message', {
+            data: JSON.stringify({ type: 'room.viewerCount', count: 3 }),
+          }),
+        );
+
+        // Assert the callback was called with the correct count
+        expect(onViewerCountChange).toHaveBeenCalledWith({ count: 3 });
+      });
     });
   });
 
