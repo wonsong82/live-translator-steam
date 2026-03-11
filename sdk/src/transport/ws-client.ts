@@ -45,6 +45,11 @@ export class WSClient {
     }
   }
 
+  sendRoomCreate(): void {
+    if (this.ws?.readyState !== WebSocket.OPEN) return;
+    this.ws.send(serializeClientMessage({ type: 'room.create' }));
+  }
+
   sendSessionUpdate(config: { sourceLanguage?: string; targetLanguage?: string; mode?: TranslationMode }): void {
     if (this.ws?.readyState !== WebSocket.OPEN) return;
     this.ws.send(serializeClientMessage({ type: 'session.update', config }));
