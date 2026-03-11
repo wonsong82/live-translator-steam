@@ -12,7 +12,7 @@ import { useRoomStore } from '../store/useRoomStore';
 
 export default function PresentationTranslate() {
   const navigate = useNavigate();
-  const { start, stop, createRoom } = useTranslator();
+  const { start, pause, resume, destroy, createRoom } = useTranslator();
   const isRecording = useTranslatorStore((s) => s.isRecording);
   const showTranscription = useTranslatorStore((s) => s.showTranscription);
   const sentences = useTranslatorStore((s) => s.sentences);
@@ -20,6 +20,7 @@ export default function PresentationTranslate() {
   const currentInterimTranslation = useTranslatorStore((s) => s.currentInterimTranslation);
 
   const [showOverlay, setShowOverlay] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
   const roomId = useRoomStore((s) => s.roomId);
   const viewerCount = useRoomStore((s) => s.viewerCount);
   const setRoom = useRoomStore((s) => s.setRoom);
@@ -27,16 +28,27 @@ export default function PresentationTranslate() {
   const koreanRef = useRef<HTMLDivElement>(null);
   const englishRef = useRef<HTMLDivElement>(null);
 
-  const handleToggle = useCallback((): void => {
-    if (isRecording) stop();
-    else start();
-  }, [isRecording, start, stop]);
+  // Auto-start recording on mount
+  useEffect(() => {
+    start().catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : 'Failed to start recording';
+      setStartError(msg);
+    });
+  }, [start]);
+
+  const handleToggle = useCallback(async (): Promise<void> => {
+    if (isRecording) {
+      pause();
+    } else {
+      await resume();
+    }
+  }, [isRecording, pause, resume]);
 
   const handleExit = useCallback((): void => {
-    stop(); // calls destroy() — full teardown
+    destroy(); // calls destroy() — full teardown
     useRoomStore.getState().resetRoom();
     navigate('/');
-  }, [stop, navigate]);
+  }, [destroy, navigate]);
 
   const handleCreateRoom = useCallback(async (): Promise<void> => {
     try {
@@ -169,13 +181,13 @@ export default function PresentationTranslate() {
          <div className="absolute right-6">
            <ModeToggle />
          </div>
-         <div className="flex flex-col items-center gap-2">
-           <AudioVisualizer />
-           <RecordButton onToggle={handleToggle} dark />
-           <span className="text-xs text-[#555] font-medium">
-             {isRecording ? 'Recording — tap to stop' : 'Tap to record'}
-           </span>
-         </div>
+           <div className="flex flex-col items-center gap-2">
+             <AudioVisualizer />
+             <RecordButton onToggle={handleToggle} dark />
+             <span className="text-xs text-[#555] font-medium">
+               {startError ? 'Error: ' + startError : isRecording ? 'Recording — tap to pause' : 'Paused — tap to resume'}
+             </span>
+           </div>
        </div>
 
        {showOverlay && roomId && (
