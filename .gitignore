@@ -55,3 +55,6 @@ qwen3-asr/models/
 # Misc
 *.tgz
 *.tar.gz
+
+# Opencode
+.sisyphus

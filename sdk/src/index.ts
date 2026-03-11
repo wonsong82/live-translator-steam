@@ -4,9 +4,12 @@ import type {
   ConnectionStatus,
   TranscriptState,
   TranslationMode,
+  ViewerConfig,
+  ViewerInstance,
 } from './types.js';
 import { AudioCapture } from './audio/capture.js';
 import { WSClient, type WSMessageCallback } from './transport/ws-client.js';
+import { ViewerClient, type ViewerMessageCallback } from './transport/viewer-client.js';
 import { SessionState } from './state/session-state.js';
 import { EventEmitter } from './events/emitter.js';
 import type { ServerMessage } from './transport/protocol.js';
@@ -33,6 +36,9 @@ function createInstance(config: TranslateSDKConfig): TranslateSDKInstance {
   if (config.onTranslationFinal) emitter.on('translationFinal', config.onTranslationFinal);
   if (config.onStatusChange) emitter.on('statusChange', config.onStatusChange);
   if (config.onError) emitter.on('error', config.onError);
+
+  let pendingRoomResolve: ((value: { roomId: string }) => void) | null = null;
+  let pendingRoomReject: ((reason: Error) => void) | null = null;
 
   const handleMessage: WSMessageCallback = (msg: ServerMessage) => {
     switch (msg.type) {
@@ -74,6 +80,24 @@ function createInstance(config: TranslateSDKConfig): TranslateSDKInstance {
         emitter.emit('statusChange', mapped);
         break;
       }
+
+      case 'room.created':
+        if (pendingRoomResolve) {
+          pendingRoomResolve({ roomId: msg.roomId });
+          pendingRoomResolve = null;
+          pendingRoomReject = null;
+        }
+        if (config.onRoomCreated) config.onRoomCreated({ roomId: msg.roomId });
+        break;
+
+      case 'room.error':
+        if (pendingRoomReject) {
+          pendingRoomReject(new Error(msg.message));
+          pendingRoomResolve = null;
+          pendingRoomReject = null;
+        }
+        if (config.onRoomError) config.onRoomError({ code: msg.code, message: msg.message });
+        break;
 
       case 'error':
         emitter.emit('error', { code: msg.code, message: msg.message });
@@ -144,10 +168,100 @@ function createInstance(config: TranslateSDKConfig): TranslateSDKInstance {
     getTranslations(): Record<number, string> {
       return state.getTranslations();
     },
+
+    async createRoom(): Promise<{ roomId: string }> {
+      return new Promise((resolve, reject) => {
+        pendingRoomResolve = resolve;
+        pendingRoomReject = reject;
+        wsClient.sendRoomCreate();
+      });
+    },
+
+    destroyRoom(): void {
+      wsClient.disconnect();
+    },
   };
 
   return instance;
 }
 
-export const TranslateSDK = { init: createInstance };
-export type { TranslateSDKConfig, TranslateSDKInstance, ConnectionStatus, TranslationMode, TranscriptState };
+function createViewerInstance(config: ViewerConfig): ViewerInstance {
+  const emitter = new EventEmitter<SDKEvents>();
+  const viewerClient = new ViewerClient(config.serverUrl);
+
+  if (config.onTranscriptionInterim) emitter.on('transcriptionInterim', config.onTranscriptionInterim);
+  if (config.onTranscriptionFinal) emitter.on('transcriptionFinal', config.onTranscriptionFinal);
+  if (config.onTranslationInterim) emitter.on('translationInterim', config.onTranslationInterim);
+  if (config.onTranslationFinal) emitter.on('translationFinal', config.onTranslationFinal);
+  if (config.onStatusChange) emitter.on('statusChange', config.onStatusChange);
+  if (config.onError) emitter.on('error', config.onError);
+
+  let currentStatus: ConnectionStatus = 'disconnected';
+
+  const handleMessage: ViewerMessageCallback = (msg: ServerMessage) => {
+    switch (msg.type) {
+      case 'transcription.interim':
+        emitter.emit('transcriptionInterim', {
+          text: msg.text, language: msg.language, timestamp: msg.timestamp, confidence: msg.confidence,
+        });
+        break;
+
+      case 'transcription.final':
+        emitter.emit('transcriptionFinal', {
+          text: msg.text, language: msg.language, timestamp: msg.timestamp,
+          confidence: msg.confidence, sentenceIndex: msg.sentenceIndex,
+        });
+        break;
+
+      case 'translation.interim':
+        emitter.emit('translationInterim', {
+          sourceText: msg.sourceText, translatedText: msg.translatedText, sentenceIndex: null,
+        });
+        break;
+
+      case 'translation.final':
+        emitter.emit('translationFinal', {
+          sourceText: msg.sourceText, translatedText: msg.translatedText, sentenceIndex: msg.sentenceIndex,
+        });
+        break;
+
+      case 'room.error':
+        if (config.onRoomError) config.onRoomError({ code: msg.code, message: msg.message });
+        break;
+    }
+  };
+
+  const instance: ViewerInstance = {
+    connect(): void {
+      viewerClient.connect(
+        { roomId: config.roomId, apiKey: config.apiKey },
+        handleMessage,
+        (wsState) => {
+          const statusMap: Record<string, ConnectionStatus> = {
+            connecting: 'connecting', connected: 'connected', disconnected: 'disconnected', error: 'error',
+          };
+          currentStatus = statusMap[wsState] ?? 'disconnected';
+          emitter.emit('statusChange', currentStatus);
+        },
+      );
+    },
+
+    disconnect(): void {
+      viewerClient.disconnect();
+    },
+
+    destroy(): void {
+      viewerClient.disconnect();
+      emitter.removeAllListeners();
+    },
+
+    getStatus(): ConnectionStatus {
+      return currentStatus;
+    },
+  };
+
+  return instance;
+}
+
+export const TranslateSDK = { init: createInstance, view: createViewerInstance };
+export type { TranslateSDKConfig, TranslateSDKInstance, ConnectionStatus, TranslationMode, TranscriptState, ViewerConfig, ViewerInstance };

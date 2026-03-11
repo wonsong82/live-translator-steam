@@ -6,6 +6,7 @@ export interface TranslatorHook {
   start: () => void;
   stop: () => void;
   destroy: () => void;
+  createRoom: () => Promise<string>;
 }
 
 const WS_URL = (import.meta.env.VITE_WS_URL as string | undefined) ?? 'ws://localhost:8080/ws';
@@ -88,5 +89,11 @@ export function useTranslator(): TranslatorHook {
     useTranslatorStore.getState().reset();
   }, []);
 
-  return { start, stop, destroy };
+  const createRoom = useCallback(async (): Promise<string> => {
+    if (!sdkRef.current) throw new Error('SDK not started');
+    const { roomId } = await sdkRef.current.createRoom();
+    return roomId;
+  }, []);
+
+  return { start, stop, destroy, createRoom };
 }

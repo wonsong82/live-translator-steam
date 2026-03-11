@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { serializeClientMessage, parseServerMessage } from '../src/transport/protocol.js';
+import type { RoomCreateMessage, RoomJoinMessage, RoomLeaveMessage } from '../src/transport/protocol.js';
 
 describe('serializeClientMessage', () => {
   it('serializes session.start', () => {
@@ -96,5 +97,50 @@ describe('parseServerMessage', () => {
 
   it('returns null for missing type field', () => {
     expect(parseServerMessage(JSON.stringify({ foo: 'bar' }))).toBeNull();
+  });
+});
+
+describe('room messages', () => {
+  describe('client messages', () => {
+    it('serializes room.create', () => {
+      const msg: RoomCreateMessage = { type: 'room.create' };
+      expect(serializeClientMessage(msg)).toBe('{"type":"room.create"}');
+    });
+
+    it('serializes room.join with roomId', () => {
+      const msg: RoomJoinMessage = { type: 'room.join', roomId: 'ABC123' };
+      expect(serializeClientMessage(msg)).toBe('{"type":"room.join","roomId":"ABC123"}');
+    });
+
+    it('serializes room.leave', () => {
+      const msg: RoomLeaveMessage = { type: 'room.leave' };
+      expect(serializeClientMessage(msg)).toBe('{"type":"room.leave"}');
+    });
+  });
+
+  describe('server messages', () => {
+    it('parses room.created', () => {
+      const json = '{"type":"room.created","roomId":"XY7890"}';
+      const msg = parseServerMessage(json);
+      expect(msg).toEqual({ type: 'room.created', roomId: 'XY7890' });
+    });
+
+    it('parses room.joined', () => {
+      const json = '{"type":"room.joined","roomId":"XY7890"}';
+      const msg = parseServerMessage(json);
+      expect(msg).toEqual({ type: 'room.joined', roomId: 'XY7890' });
+    });
+
+    it('parses room.error with code and message', () => {
+      const json = '{"type":"room.error","code":"ROOM_NOT_FOUND","message":"Room not found"}';
+      const msg = parseServerMessage(json);
+      expect(msg).toEqual({ type: 'room.error', code: 'ROOM_NOT_FOUND', message: 'Room not found' });
+    });
+
+    it('parses room.viewerCount', () => {
+      const json = '{"type":"room.viewerCount","count":42}';
+      const msg = parseServerMessage(json);
+      expect(msg).toEqual({ type: 'room.viewerCount', count: 42 });
+    });
   });
 });
