@@ -1,10 +1,12 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AudioVisualizer } from '../components/AudioVisualizer';
 import { RecordButton } from '../components/Controls/RecordButton';
 import { ModeToggle } from '../components/Controls/ModeToggle';
 import { TranscriptionToggle } from '../components/Controls/TranscriptionToggle';
+import { MicPicker } from '../components/Controls/MicPicker';
 import { StatusBar } from '../components/StatusBar';
+import { SettingsOverlay } from '../components/SettingsOverlay';
 import { SourcePanel } from '../components/TranslationPanel/SourcePanel';
 import { TargetPanel } from '../components/TranslationPanel/TargetPanel';
 import { useTranslator } from '../hooks/useTranslator';
@@ -14,6 +16,7 @@ export default function Translate() {
   const { start, stop } = useTranslator();
   const isRecording = useTranslatorStore((s) => s.isRecording);
   const showTranscription = useTranslatorStore((s) => s.showTranscription);
+  const [showSettings, setShowSettings] = useState(false);
 
   const handleToggle = useCallback((): void => {
     if (isRecording) stop();
@@ -21,7 +24,7 @@ export default function Translate() {
   }, [isRecording, start, stop]);
 
   return (
-    <div className="h-dvh flex flex-col bg-slate-50 overflow-hidden">
+    <div className="h-dvh flex flex-col bg-slate-50 overflow-hidden relative">
       <div className="flex items-center px-5 py-3 bg-white border-b border-slate-200 gap-3 shrink-0">
         <Link to="/" aria-label="Back to home" className="text-slate-400 hover:text-slate-600 transition-colors p-1 -ml-1 rounded-lg hover:bg-slate-100">
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -31,12 +34,16 @@ export default function Translate() {
         <span className="font-semibold text-slate-700 text-sm">Live Translation</span>
         <div className="flex-1" />
         <StatusBar />
-        <Link to="/settings" aria-label="Settings" className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100 ml-2">
+        <button
+          onClick={() => setShowSettings(true)}
+          aria-label="Settings"
+          className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100 ml-2"
+        >
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <circle cx="12" cy="12" r="3" />
             <path strokeLinecap="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
           </svg>
-        </Link>
+        </button>
       </div>
 
       <div className="flex bg-white border-b border-slate-100 shrink-0">
@@ -70,12 +77,19 @@ export default function Translate() {
         </div>
         <div className="flex flex-col items-center gap-2">
           <AudioVisualizer />
-          <RecordButton onToggle={handleToggle} />
+          <div className="flex items-center gap-3">
+            <MicPicker />
+            <RecordButton onToggle={handleToggle} />
+          </div>
           <span className="text-xs text-slate-400 font-medium">
             {isRecording ? 'Recording — tap to stop' : 'Tap to record'}
           </span>
         </div>
       </div>
+
+      {showSettings && (
+        <SettingsOverlay open={showSettings} onClose={() => setShowSettings(false)} showMicSelector />
+      )}
     </div>
   );
 }

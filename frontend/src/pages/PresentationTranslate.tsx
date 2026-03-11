@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { AudioVisualizer } from '../components/AudioVisualizer';
 import { RecordButton } from '../components/Controls/RecordButton';
 import { ModeToggle } from '../components/Controls/ModeToggle';
 import { TranscriptionToggle } from '../components/Controls/TranscriptionToggle';
+import { MicPicker } from '../components/Controls/MicPicker';
 import { StatusBar } from '../components/StatusBar';
+import { SettingsOverlay } from '../components/SettingsOverlay';
 import { RoomOverlay } from '../components/RoomOverlay';
 import { useTranslator } from '../hooks/useTranslator';
 import { useTranslatorStore } from '../store/useTranslatorStore';
@@ -21,6 +23,7 @@ export default function PresentationTranslate() {
   const currentInterimTranslation = useTranslatorStore((s) => s.currentInterimTranslation);
 
   const [showOverlay, setShowOverlay] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const roomId = useRoomStore((s) => s.roomId);
   const viewerCount = useRoomStore((s) => s.viewerCount);
@@ -92,12 +95,16 @@ export default function PresentationTranslate() {
              <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
            </svg>
          </button>
-         <Link to="/settings" aria-label="Settings" className="text-[#555] hover:text-[#999] transition-colors p-1 rounded-lg hover:bg-[#1a1a1a] ml-2">
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <circle cx="12" cy="12" r="3" />
-              <path strokeLinecap="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-            </svg>
-          </Link>
+         <button
+           onClick={() => setShowSettings(true)}
+           aria-label="Settings"
+           className="text-[#555] hover:text-[#999] transition-colors p-1 rounded-lg hover:bg-[#1a1a1a] ml-2"
+         >
+           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+             <circle cx="12" cy="12" r="3" />
+             <path strokeLinecap="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+           </svg>
+         </button>
           <button
             onClick={handleExit}
             aria-label="Exit to home"
@@ -199,14 +206,21 @@ export default function PresentationTranslate() {
           <div className="absolute right-6">
             <ModeToggle />
           </div>
-            <div className="flex flex-col items-center gap-2">
-              <AudioVisualizer />
-              <RecordButton onToggle={handleToggle} dark />
-               <span className="text-xs text-[#555] font-medium">
-                 {startError ? 'Error: ' + startError : isRecording ? 'Recording — tap to pause' : isStarted ? 'Paused — tap to resume' : 'Tap to start'}
-               </span>
-            </div>
-        </div>
-     </div>
-   );
+             <div className="flex flex-col items-center gap-2">
+               <AudioVisualizer />
+               <div className="flex items-center gap-3">
+                 <MicPicker dark />
+                 <RecordButton onToggle={handleToggle} dark />
+               </div>
+                <span className="text-xs text-[#555] font-medium">
+                  {startError ? 'Error: ' + startError : isRecording ? 'Recording — tap to pause' : isStarted ? 'Paused — tap to resume' : 'Tap to start'}
+                </span>
+             </div>
+         </div>
+
+         {showSettings && (
+           <SettingsOverlay open={showSettings} onClose={() => setShowSettings(false)} showMicSelector />
+         )}
+      </div>
+    );
 }

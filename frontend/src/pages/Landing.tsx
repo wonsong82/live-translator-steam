@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { SettingsOverlay } from '../components/SettingsOverlay';
 
 function getPresentation(): boolean {
   return localStorage.getItem('presentationMode') === 'true';
@@ -7,6 +8,7 @@ function getPresentation(): boolean {
 
 export default function Landing() {
   const [presentation, setPresentation] = useState(getPresentation);
+  const [showSettings, setShowSettings] = useState(false);
 
   const togglePresentation = () => {
     const next = !presentation;
@@ -15,15 +17,15 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-dvh bg-white flex flex-col">
+    <div className="min-h-dvh bg-white flex flex-col relative">
       <header className="px-8 py-6 flex items-center justify-between">
         <span className="text-red-700 font-bold text-lg tracking-tight">Translate</span>
-        <Link
-          to="/settings"
+        <button
+          onClick={() => setShowSettings(true)}
           className="text-slate-400 hover:text-slate-700 text-sm font-medium transition-colors"
         >
           Settings
-        </Link>
+        </button>
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center px-8 text-center">
@@ -83,6 +85,10 @@ export default function Landing() {
       </main>
 
       <div className="h-1 bg-gradient-to-r from-red-600 via-red-400 to-red-600" />
+
+      {showSettings && (
+        <SettingsOverlay open={showSettings} onClose={() => setShowSettings(false)} />
+      )}
     </div>
   );
 }
