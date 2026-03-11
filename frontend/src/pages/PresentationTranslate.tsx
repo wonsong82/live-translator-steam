@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AudioVisualizer } from '../components/AudioVisualizer';
 import { RecordButton } from '../components/Controls/RecordButton';
 import { ModeToggle } from '../components/Controls/ModeToggle';
@@ -11,6 +11,7 @@ import { useTranslatorStore } from '../store/useTranslatorStore';
 import { useRoomStore } from '../store/useRoomStore';
 
 export default function PresentationTranslate() {
+  const navigate = useNavigate();
   const { start, stop, createRoom } = useTranslator();
   const isRecording = useTranslatorStore((s) => s.isRecording);
   const showTranscription = useTranslatorStore((s) => s.showTranscription);
@@ -30,6 +31,12 @@ export default function PresentationTranslate() {
     if (isRecording) stop();
     else start();
   }, [isRecording, start, stop]);
+
+  const handleExit = useCallback((): void => {
+    stop(); // calls destroy() — full teardown
+    useRoomStore.getState().resetRoom();
+    navigate('/');
+  }, [stop, navigate]);
 
   const handleCreateRoom = useCallback(async (): Promise<void> => {
     try {
@@ -52,11 +59,15 @@ export default function PresentationTranslate() {
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a] overflow-hidden">
       <div className="flex items-center px-5 py-3 bg-[#111] border-b border-[#222] gap-3 shrink-0">
-        <Link to="/" aria-label="Back to home" className="text-[#555] hover:text-[#999] transition-colors p-1 -ml-1 rounded-lg hover:bg-[#1a1a1a]">
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-        </Link>
+         <button
+           onClick={handleExit}
+           aria-label="Exit to home"
+           className="text-[#555] hover:text-[#999] transition-colors p-1 -ml-1 rounded-lg hover:bg-[#1a1a1a]"
+         >
+           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+           </svg>
+         </button>
         <span className="font-semibold text-[#999] text-sm">Live Translation</span>
         <div className="flex-1" />
          <StatusBar />
