@@ -25,7 +25,26 @@ export interface SessionEndMessage {
   readonly type: 'session.end';
 }
 
-export type ClientMessage = SessionStartMessage | SessionUpdateMessage | SessionEndMessage;
+export interface RoomCreateMessage {
+  readonly type: 'room.create';
+}
+
+export interface RoomJoinMessage {
+  readonly type: 'room.join';
+  readonly roomId: string;
+}
+
+export interface RoomLeaveMessage {
+  readonly type: 'room.leave';
+}
+
+export type ClientMessage =
+  | SessionStartMessage
+  | SessionUpdateMessage
+  | SessionEndMessage
+  | RoomCreateMessage
+  | RoomJoinMessage
+  | RoomLeaveMessage;
 
 export interface TranscriptionInterimMessage {
   readonly type: 'transcription.interim';
@@ -69,13 +88,38 @@ export interface SessionStatusMessage {
   readonly status: 'connected' | 'reconnecting' | 'error';
 }
 
+export interface RoomCreatedMessage {
+  readonly type: 'room.created';
+  readonly roomId: string;
+}
+
+export interface RoomJoinedMessage {
+  readonly type: 'room.joined';
+  readonly roomId: string;
+}
+
+export interface RoomErrorMessage {
+  readonly type: 'room.error';
+  readonly code: string;
+  readonly message: string;
+}
+
+export interface RoomViewerCountMessage {
+  readonly type: 'room.viewerCount';
+  readonly count: number;
+}
+
 export type ServerMessage =
   | TranscriptionInterimMessage
   | TranscriptionFinalMessage
   | TranslationInterimMessage
   | TranslationFinalMessage
   | ErrorMessage
-  | SessionStatusMessage;
+  | SessionStatusMessage
+  | RoomCreatedMessage
+  | RoomJoinedMessage
+  | RoomErrorMessage
+  | RoomViewerCountMessage;
 
 export function serializeClientMessage(msg: ClientMessage): string {
   return JSON.stringify(msg);
