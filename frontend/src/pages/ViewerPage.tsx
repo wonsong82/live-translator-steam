@@ -60,7 +60,7 @@ export default function ViewerPage() {
   const isConnected = connectionStatus === 'connected';
 
   return (
-    <div className="h-screen flex flex-col bg-[#0a0a0a] overflow-hidden">
+    <div className="h-dvh flex flex-col bg-[#0a0a0a] overflow-hidden">
       {!isFullscreen && (
         <div className="flex items-center px-5 py-3 bg-[#111] border-b border-[#222] gap-3 shrink-0">
            <span className="font-semibold text-[#999] text-sm">Viewing Room: {roomId}</span>

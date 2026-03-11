@@ -5,6 +5,9 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    touch-action: manipulation;
+  }
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;

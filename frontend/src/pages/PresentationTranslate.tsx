@@ -74,7 +74,7 @@ export default function PresentationTranslate() {
   const offset = sentences.length - visibleSentences.length;
 
   return (
-    <div className="h-screen flex flex-col bg-[#0a0a0a] overflow-hidden">
+    <div className="h-dvh flex flex-col bg-[#0a0a0a] overflow-hidden">
       <div className="flex items-center px-5 py-3 bg-[#111] border-b border-[#222] gap-3 shrink-0">
         <span className="font-semibold text-[#999] text-sm">Live Translation</span>
         <div className="flex-1" />

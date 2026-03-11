@@ -15,7 +15,7 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-dvh bg-white flex flex-col">
       <header className="px-8 py-6 flex items-center justify-between">
         <span className="text-red-700 font-bold text-lg tracking-tight">Translate</span>
         <Link
