@@ -9,6 +9,7 @@ import { RoomOverlay } from '../components/RoomOverlay';
 import { useTranslator } from '../hooks/useTranslator';
 import { useTranslatorStore } from '../store/useTranslatorStore';
 import { useRoomStore } from '../store/useRoomStore';
+import { isMobile } from '../utils/isMobile';
 
 export default function PresentationTranslate() {
   const navigate = useNavigate();
@@ -28,12 +29,14 @@ export default function PresentationTranslate() {
   const koreanRef = useRef<HTMLDivElement>(null);
   const englishRef = useRef<HTMLDivElement>(null);
 
-  // Auto-start recording on mount
+  // Auto-start recording on mount (skip on mobile)
   useEffect(() => {
-    start().catch((err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'Failed to start recording';
-      setStartError(msg);
-    });
+    if (!isMobile()) {
+      start().catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Failed to start recording';
+        setStartError(msg);
+      });
+    }
   }, [start]);
 
   const handleToggle = useCallback(async (): Promise<void> => {
