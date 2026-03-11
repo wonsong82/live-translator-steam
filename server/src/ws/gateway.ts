@@ -15,6 +15,7 @@ export class WSGateway {
   private readonly rooms = new RoomManager();
   private readonly viewers = new Set<WebSocket>();
   private readonly viewerRooms = new Map<WebSocket, string>();
+  private readonly aliveViewers = new Set<WebSocket>();
   private readonly log = getLogger().child({ module: 'ws-gateway' });
 
   constructor(server: HttpServer) {
@@ -32,7 +33,11 @@ export class WSGateway {
 
     ws.on('pong', () => {
       const session = this.sessions.get(ws);
-      if (session) session.markAlive();
+      if (session) {
+        session.markAlive();
+      } else if (this.viewers.has(ws)) {
+        this.aliveViewers.add(ws);
+      }
     });
   }
 
@@ -178,15 +183,24 @@ export class WSGateway {
       this.sendError(ws, 'ROOM_ERROR', 'roomId is required');
       return;
     }
+    // Check existence first to give a specific error code
+    if (!this.rooms.hasRoom(roomId)) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'room.error', code: 'ROOM_NOT_FOUND', message: 'Room not found' }));
+      }
+      return;
+    }
     const joined = this.rooms.joinRoom(roomId, ws);
     if (!joined) {
+      // Room exists but is full
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'room.error', code: 'ROOM_NOT_FOUND', message: 'Room not found or full' }));
+        ws.send(JSON.stringify({ type: 'room.error', code: 'ROOM_FULL', message: 'Room is at capacity' }));
       }
       return;
     }
     this.viewers.add(ws);
     this.viewerRooms.set(ws, roomId);
+    this.aliveViewers.add(ws);
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'room.joined', roomId }));
       ws.send(JSON.stringify({ type: 'room.viewerCount', count: this.rooms.getViewerCount(roomId) }));
@@ -200,6 +214,7 @@ export class WSGateway {
       this.rooms.leaveRoom(roomId, ws);
       this.viewerRooms.delete(ws);
     }
+    this.aliveViewers.delete(ws);
     this.viewers.delete(ws);
   }
 
@@ -211,6 +226,7 @@ export class WSGateway {
         this.rooms.leaveRoom(roomId, ws);
         this.viewerRooms.delete(ws);
       }
+      this.aliveViewers.delete(ws);
       this.viewers.delete(ws);
       this.log.info({ code, totalSessions: this.sessions.size }, 'viewer disconnected');
       return;
@@ -258,15 +274,20 @@ export class WSGateway {
       }
 
       for (const viewerWs of this.viewers) {
-        if (viewerWs.readyState === WebSocket.OPEN) {
-          viewerWs.ping();
-        } else {
+        if (!this.aliveViewers.has(viewerWs)) {
+          this.log.warn('terminating stale viewer');
+          viewerWs.terminate();
           this.viewers.delete(viewerWs);
           const roomId = this.viewerRooms.get(viewerWs);
           if (roomId) {
             this.rooms.leaveRoom(roomId, viewerWs);
             this.viewerRooms.delete(viewerWs);
           }
+          continue;
+        }
+        this.aliveViewers.delete(viewerWs);
+        if (viewerWs.readyState === WebSocket.OPEN) {
+          viewerWs.ping();
         }
       }
     }, intervalMs);

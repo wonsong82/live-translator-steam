@@ -387,7 +387,7 @@ describe('WSGateway — room integration', () => {
   // -------------------------------------------------------------------------
   // Test 9 (bonus): room.join when room is full (200 viewers) → ROOM_FULL
   // -------------------------------------------------------------------------
-  it('joining a full room (200 viewers) returns room.error with ROOM_NOT_FOUND (capacity exceeded)', async () => {
+  it('joining a full room (200 viewers) returns room.error with ROOM_FULL', async () => {
     const presenterWs = mockWs();
     const gw = asPrivate(gateway);
 
@@ -415,8 +415,7 @@ describe('WSGateway — room integration', () => {
 
     const errorMsg = findSent(lateViewer, (m) => m.type === 'room.error');
     expect(errorMsg).toBeDefined();
-    // RoomManager returns false when full, gateway sends ROOM_NOT_FOUND (same path as not found)
-    expect(errorMsg!.code).toBe('ROOM_NOT_FOUND');
+    expect(errorMsg!.code).toBe('ROOM_FULL');
   });
 
   // -------------------------------------------------------------------------

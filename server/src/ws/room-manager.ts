@@ -82,4 +82,8 @@ export class RoomManager {
   getViewerCount(roomCode: string): number {
     return this.rooms.get(roomCode)?.viewers.size ?? 0;
   }
+
+  hasRoom(roomCode: string): boolean {
+    return this.rooms.has(roomCode);
+  }
 }
