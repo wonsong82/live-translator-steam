@@ -99,6 +99,10 @@ function createInstance(config: TranslateSDKConfig): TranslateSDKInstance {
         if (config.onRoomError) config.onRoomError({ code: msg.code, message: msg.message });
         break;
 
+      case 'room.viewerCount':
+        if (config.onViewerCountChange) config.onViewerCountChange({ count: msg.count });
+        break;
+
       case 'error':
         emitter.emit('error', { code: msg.code, message: msg.message });
         break;
@@ -129,6 +133,13 @@ function createInstance(config: TranslateSDKConfig): TranslateSDKInstance {
     stop(): void {
       audio.stop();
       state.recording = false;
+    },
+
+    async resume(): Promise<void> {
+      await audio.start((pcm16Frame) => {
+        wsClient.sendAudio(pcm16Frame);
+      });
+      state.recording = true;
     },
 
     destroy(): void {
