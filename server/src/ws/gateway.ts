@@ -203,7 +203,10 @@ export class WSGateway {
     this.aliveViewers.add(ws);
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'room.joined', roomId }));
-      ws.send(JSON.stringify({ type: 'room.viewerCount', count: this.rooms.getViewerCount(roomId) }));
+    }
+    const presenterWs = this.rooms.getPresenterWs(roomId);
+    if (presenterWs && presenterWs.readyState === WebSocket.OPEN) {
+      presenterWs.send(JSON.stringify({ type: 'room.viewerCount', count: this.rooms.getViewerCount(roomId) }));
     }
     this.log.info({ roomId, totalViewers: this.rooms.getViewerCount(roomId) }, 'viewer joined room');
   }
@@ -213,6 +216,10 @@ export class WSGateway {
     if (roomId) {
       this.rooms.leaveRoom(roomId, ws);
       this.viewerRooms.delete(ws);
+      const presenterWs = this.rooms.getPresenterWs(roomId);
+      if (presenterWs && presenterWs.readyState === WebSocket.OPEN) {
+        presenterWs.send(JSON.stringify({ type: 'room.viewerCount', count: this.rooms.getViewerCount(roomId) }));
+      }
     }
     this.aliveViewers.delete(ws);
     this.viewers.delete(ws);
@@ -225,6 +232,10 @@ export class WSGateway {
       if (roomId) {
         this.rooms.leaveRoom(roomId, ws);
         this.viewerRooms.delete(ws);
+        const presenterWs = this.rooms.getPresenterWs(roomId);
+        if (presenterWs && presenterWs.readyState === WebSocket.OPEN) {
+          presenterWs.send(JSON.stringify({ type: 'room.viewerCount', count: this.rooms.getViewerCount(roomId) }));
+        }
       }
       this.aliveViewers.delete(ws);
       this.viewers.delete(ws);
@@ -282,6 +293,10 @@ export class WSGateway {
           if (roomId) {
             this.rooms.leaveRoom(roomId, viewerWs);
             this.viewerRooms.delete(viewerWs);
+            const presenterWs = this.rooms.getPresenterWs(roomId);
+            if (presenterWs && presenterWs.readyState === WebSocket.OPEN) {
+              presenterWs.send(JSON.stringify({ type: 'room.viewerCount', count: this.rooms.getViewerCount(roomId) }));
+            }
           }
           continue;
         }

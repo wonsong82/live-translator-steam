@@ -86,4 +86,8 @@ export class RoomManager {
   hasRoom(roomCode: string): boolean {
     return this.rooms.has(roomCode);
   }
+
+  getPresenterWs(roomCode: string): WebSocket | undefined {
+    return this.rooms.get(roomCode)?.presenterWs;
+  }
 }
