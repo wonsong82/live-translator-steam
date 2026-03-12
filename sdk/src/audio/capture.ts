@@ -32,16 +32,38 @@ export class AudioCapture {
     return this._active;
   }
 
-  async start(onFrame: AudioFrameCallback): Promise<void> {
+  async start(onFrame: AudioFrameCallback, deviceId?: string): Promise<void> {
     this.onFrame = onFrame;
 
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
+    const baseAudioConstraints = {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    };
+
+    const audioConstraints = deviceId
+      ? { ...baseAudioConstraints, deviceId: { exact: deviceId } }
+      : baseAudioConstraints;
+
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: audioConstraints,
+      });
+    } catch (err) {
+      // If OverconstrainedError with exact deviceId, retry without it
+      if (
+        (err instanceof DOMException && err.name === 'OverconstrainedError') ||
+        (err as { name?: string })?.name === 'OverconstrainedError'
+      ) {
+        // Retry without deviceId constraint
+        console.warn(`[AudioCapture] Device "${deviceId}" unavailable (OverconstrainedError), falling back to default mic`);
+        this.stream = await navigator.mediaDevices.getUserMedia({
+          audio: baseAudioConstraints,
+        });
+      } else {
+        throw err;
+      }
+    }
 
     this.context = new AudioContext();
     const nativeSampleRate = this.context.sampleRate;

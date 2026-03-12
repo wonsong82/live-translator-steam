@@ -24,6 +24,10 @@ export class WSGateway {
     this.log.info('WebSocket gateway initialized');
   }
 
+  hasRoom(roomCode: string): boolean {
+    return this.rooms.hasRoom(roomCode);
+  }
+
   private handleConnection(ws: WebSocket): void {
     this.log.info({ totalSessions: this.sessions.size + 1 }, 'client connected');
 
@@ -52,7 +56,7 @@ export class WSGateway {
     }
 
     try {
-      const message = JSON.parse(data.toString()) as { type: string; config?: Record<string, unknown>; roomId?: string };
+      const message = JSON.parse(data.toString()) as { type: string; config?: Record<string, unknown>; roomId?: string; customCode?: string };
       this.handleControlMessage(ws, message);
     } catch {
       this.sendError(ws, 'INVALID_MESSAGE', 'Failed to parse message');
@@ -74,7 +78,7 @@ export class WSGateway {
     session.sendAudio(chunk);
   }
 
-  private handleControlMessage(ws: WebSocket, message: { type: string; config?: Record<string, unknown>; roomId?: string }): void {
+  private handleControlMessage(ws: WebSocket, message: { type: string; config?: Record<string, unknown>; roomId?: string; customCode?: string }): void {
     switch (message.type) {
       case 'session.start':
         this.handleSessionStart(ws, message);
@@ -86,7 +90,7 @@ export class WSGateway {
         this.handleSessionEnd(ws);
         break;
       case 'room.create':
-        this.handleRoomCreate(ws);
+        this.handleRoomCreate(ws, message.customCode);
         break;
       case 'room.join':
         this.handleRoomJoin(ws, message);
@@ -161,13 +165,21 @@ export class WSGateway {
     this.log.info({ totalSessions: this.sessions.size }, 'session ended');
   }
 
-  private handleRoomCreate(ws: WebSocket): void {
+  private handleRoomCreate(ws: WebSocket, customCode?: string): void {
     const session = this.sessions.get(ws);
     if (!session) {
       this.sendError(ws, 'NO_SESSION', 'Start a session before creating a room');
       return;
     }
-    const roomCode = this.rooms.createRoom(ws);
+    let roomCode: string;
+    try {
+      roomCode = this.rooms.createRoom(ws, customCode);
+    } catch {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'room.error', code: 'ROOM_CODE_TAKEN', message: 'Room code is already in use' }));
+      }
+      return;
+    }
     session.onSend((msg) => {
       this.rooms.broadcast(roomCode, msg);
     });

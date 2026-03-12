@@ -9,7 +9,7 @@ export interface TranslatorHook {
   pause: () => void;
   resume: () => Promise<void>;
   destroy: () => void;
-  createRoom: () => Promise<string>;
+  createRoom: (customCode?: string) => Promise<string>;
   isStarted: boolean;
 }
 
@@ -32,21 +32,24 @@ export function useTranslator(): TranslatorHook {
     };
   }, []);
 
-  const start = useCallback(async (): Promise<void> => {
-    if (sdkRef.current) return;
-    const store = useTranslatorStore.getState();
-    const sentenceOffset = store.sentences.length;
-    store.setConnectionStatus('connecting');
+   const start = useCallback(async (): Promise<void> => {
+     if (sdkRef.current) return;
+     const store = useTranslatorStore.getState();
+     const sentenceOffset = store.sentences.length;
+     store.setConnectionStatus('connecting');
 
-    const savedMode = localStorage.getItem('translationMode');
-    const mode = savedMode === 'final-only' ? 'final-only' : 'hybrid';
+     const savedMode = localStorage.getItem('translationMode');
+     const mode = savedMode === 'final-only' ? 'final-only' : 'hybrid';
 
-    const sdk = TranslateSDK.init({
-      serverUrl: WS_URL,
-      apiKey: '',
-      sourceLanguage: 'ko',
-      targetLanguage: 'en',
-      mode,
+     const deviceId = localStorage.getItem('selectedMicDeviceId') ?? undefined;
+
+     const sdk = TranslateSDK.init({
+       serverUrl: WS_URL,
+       apiKey: '',
+       sourceLanguage: 'ko',
+       targetLanguage: 'en',
+       mode,
+       deviceId,
       onTranscriptionInterim: (data) => {
         useTranslatorStore.getState().setInterimSource(data.text);
       },
@@ -117,9 +120,9 @@ export function useTranslator(): TranslatorHook {
     useTranslatorStore.getState().reset();
   }, []);
 
-  const createRoom = useCallback(async (): Promise<string> => {
+  const createRoom = useCallback(async (customCode?: string): Promise<string> => {
     if (!sdkRef.current) throw new Error('SDK not started');
-    const { roomId } = await sdkRef.current.createRoom();
+    const { roomId } = await sdkRef.current.createRoom(customCode);
     return roomId;
   }, []);
 
