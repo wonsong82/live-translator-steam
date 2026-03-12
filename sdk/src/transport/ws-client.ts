@@ -45,9 +45,12 @@ export class WSClient {
     }
   }
 
-  sendRoomCreate(): void {
+  sendRoomCreate(customCode?: string): void {
     if (this.ws?.readyState !== WebSocket.OPEN) return;
-    this.ws.send(serializeClientMessage({ type: 'room.create' }));
+    const msg = customCode
+      ? { type: 'room.create' as const, customCode }
+      : { type: 'room.create' as const };
+    this.ws.send(serializeClientMessage(msg));
   }
 
   sendSessionUpdate(config: { sourceLanguage?: string; targetLanguage?: string; mode?: TranslationMode }): void {

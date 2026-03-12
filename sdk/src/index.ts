@@ -181,11 +181,11 @@ function createInstance(config: TranslateSDKConfig): TranslateSDKInstance {
       return state.getTranslations();
     },
 
-    async createRoom(): Promise<{ roomId: string }> {
+    async createRoom(customCode?: string): Promise<{ roomId: string }> {
       return new Promise((resolve, reject) => {
         pendingRoomResolve = resolve;
         pendingRoomReject = reject;
-        wsClient.sendRoomCreate();
+        wsClient.sendRoomCreate(customCode);
       });
     },
 

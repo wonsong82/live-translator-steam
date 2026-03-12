@@ -27,6 +27,7 @@ export interface SessionEndMessage {
 
 export interface RoomCreateMessage {
   readonly type: 'room.create';
+  readonly customCode?: string;
 }
 
 export interface RoomJoinMessage {

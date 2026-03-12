@@ -69,7 +69,7 @@ export interface TranslateSDKInstance {
   isRecording(): boolean;
   getTranscript(): TranscriptState;
   getTranslations(): Record<number, string>;
-  createRoom(): Promise<{ roomId: string }>;
+  createRoom(customCode?: string): Promise<{ roomId: string }>;
   destroyRoom(): void;
 }
 
