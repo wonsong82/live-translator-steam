@@ -6,12 +6,28 @@ import { WSGateway } from './ws/gateway.js';
 const config = loadConfig();
 const log = getLogger();
 
-const httpServer = createServer((_req, res) => {
-  if (_req.url === '/health') {
+const httpServer = createServer((req, res) => {
+  if (req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
     return;
   }
+
+  const parsed = new URL(req.url ?? '', `http://${req.headers.host ?? 'localhost'}`);
+  if (parsed.pathname === '/api/room/check' && req.method === 'GET') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    const code = parsed.searchParams.get('code')?.toUpperCase();
+    if (!code) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'code query parameter is required' }));
+      return;
+    }
+    const exists = gateway.hasRoom(code);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ available: !exists }));
+    return;
+  }
+
   res.writeHead(404);
   res.end();
 });

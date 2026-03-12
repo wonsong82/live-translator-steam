@@ -13,8 +13,11 @@ interface Room {
 export class RoomManager {
   private readonly rooms = new Map<string, Room>();
 
-  createRoom(presenterWs: WebSocket): string {
-    const roomCode = randomBytes(3).toString('hex').toUpperCase().slice(0, 6);
+  createRoom(presenterWs: WebSocket, customCode?: string): string {
+    const roomCode = customCode?.toUpperCase() || randomBytes(3).toString('hex').toUpperCase().slice(0, 6);
+    if (this.rooms.has(roomCode)) {
+      throw new Error('ROOM_CODE_TAKEN');
+    }
     const room: Room = {
       roomId: roomCode,
       presenterWs,
