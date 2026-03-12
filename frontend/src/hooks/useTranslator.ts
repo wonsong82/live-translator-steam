@@ -9,7 +9,7 @@ export interface TranslatorHook {
   pause: () => void;
   resume: () => Promise<void>;
   destroy: () => void;
-  createRoom: () => Promise<string>;
+  createRoom: (customCode?: string) => Promise<string>;
   isStarted: boolean;
 }
 
@@ -120,9 +120,9 @@ export function useTranslator(): TranslatorHook {
     useTranslatorStore.getState().reset();
   }, []);
 
-  const createRoom = useCallback(async (): Promise<string> => {
+  const createRoom = useCallback(async (customCode?: string): Promise<string> => {
     if (!sdkRef.current) throw new Error('SDK not started');
-    const { roomId } = await sdkRef.current.createRoom();
+    const { roomId } = await sdkRef.current.createRoom(customCode);
     return roomId;
   }, []);
 

@@ -31,13 +31,27 @@ export default function PresentationTranslate() {
   const koreanRef = useRef<HTMLDivElement>(null);
   const englishRef = useRef<HTMLDivElement>(null);
 
-  // Auto-start recording on mount
+  // Auto-start recording on mount, then create room with pending code if any
   useEffect(() => {
-    start().catch((err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'Failed to start recording';
-      setStartError(msg);
-    });
-  }, [start]);
+    start()
+      .then(async () => {
+        const pendingCode = localStorage.getItem('pendingSessionCode');
+        if (pendingCode) {
+          localStorage.removeItem('pendingSessionCode');
+          try {
+            const id = await createRoom(pendingCode);
+            setRoom(id, 'presenter');
+            setShowOverlay(true);
+          } catch {
+            // Room code may be taken — silently ignore, user can manually create
+          }
+        }
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Failed to start recording';
+        setStartError(msg);
+      });
+  }, [start, createRoom, setRoom]);
 
   const handleToggle = useCallback(async (): Promise<void> => {
     if (isRecording) {
@@ -134,7 +148,7 @@ export default function PresentationTranslate() {
               {visibleSentences.map((sentence, i) => (
                 <div key={offset + i} className="py-2">
                   <p
-                    className="text-2xl font-medium leading-relaxed text-white transition-opacity duration-300"
+                    className="text-xl font-medium leading-relaxed text-white transition-opacity duration-300"
                     style={{ opacity: Math.max(0.3, (i + 1) / visibleSentences.length) }}
                   >
                     {sentence.sourceText}
@@ -143,7 +157,7 @@ export default function PresentationTranslate() {
               ))}
               {currentInterimSource && (
                 <div className="py-3">
-                  <p className="text-2xl leading-relaxed text-white/35 italic">{currentInterimSource}</p>
+                  <p className="text-xl leading-relaxed text-white/35 italic">{currentInterimSource}</p>
                 </div>
               )}
               {sentences.length === 0 && !currentInterimSource && (
@@ -161,7 +175,7 @@ export default function PresentationTranslate() {
             <div key={offset + i} className="py-2">
               {sentence.translation !== null ? (
                 <p
-                  className="text-2xl leading-relaxed text-white transition-opacity duration-300"
+                  className="text-xl leading-relaxed text-white transition-opacity duration-300"
                   style={{ opacity: Math.max(0.3, (i + 1) / visibleSentences.length) }}
                 >
                   {sentence.translation}
@@ -177,7 +191,7 @@ export default function PresentationTranslate() {
           ))}
           {currentInterimTranslation && (
             <div className="py-3">
-              <p className="text-2xl leading-relaxed text-white/35 italic">{currentInterimTranslation}</p>
+              <p className="text-xl leading-relaxed text-white/35 italic">{currentInterimTranslation}</p>
             </div>
           )}
           {sentences.length === 0 && !currentInterimTranslation && (
